@@ -1,0 +1,98 @@
+/* ── Category rows ── */
+.cat-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
+.cat-row:last-child { border-bottom: none; }
+.cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cat-row .cr-name { flex: 1; font-size: 13px; font-weight: 500; }
+.cat-row .cr-bar-wrap { width: 120px; height: 5px; background: var(--budget-track-bg); border-radius: 3px; overflow: hidden; }
+.cat-row .cr-bar { height: 100%; border-radius: 3px; transition: width 0.5s cubic-bezier(0.16,1,0.3,1); }
+.cat-row .cr-amt { width: 90px; text-align: right; font-size: 13px; font-weight: 600; }
+.cat-row .cr-pct { width: 36px; text-align: right; font-size: 11px; color: var(--text-muted); }
+
+/* ── Transaction table ── */
+.tx-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tx-table th { text-align: left; font-size: 10px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; padding: 0 0 10px; border-bottom: 1px solid var(--border); }
+.tx-table th:last-child { text-align: right; }
+.tx-table td { padding: 10px 0; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+.tx-table tr:last-child td { border-bottom: none; }
+.tx-icon-sm { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+.tx-name-cell { padding-left: 10px !important; }
+.tx-name-cell .tn { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; display: block; }
+.tx-name-cell .tm { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.tx-amt-out { color: var(--text); font-weight: 600; text-align: right; }
+.tx-amt-inn { color: #2d6a2d; font-weight: 600; text-align: right; }
+.badge-res { font-size: 10px; background: #fff3cd; color: #856404; padding: 1px 6px; border-radius: 4px; margin-left: 4px; }
+
+/* ── Notes ── */
+.tx-note-text { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-style: italic; display: block; }
+.tx-note-input { font-size: 11px; border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; font-family: inherit; background: var(--input-bg); color: var(--text); outline: none; width: 200px; margin-top: 3px; }
+.tx-note-input:focus { border-color: var(--green-accent); }
+.note-btn { background: none; border: none; cursor: pointer; font-size: 13px; padding: 2px 4px; opacity: 0.5; transition: opacity 0.15s; line-height: 1; }
+.note-btn:hover { opacity: 1; }
+
+/* ── Split ── */
+.split-btn { background: none; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: 700; padding: 2px 6px; color: var(--text-muted); transition: all 0.15s; line-height: 1.4; }
+.split-btn.active { background: #fff3cd; border-color: #e67e22; color: #e67e22; }
+.split-amt-orig { text-decoration: line-through; color: var(--text-muted); font-size: 11px; }
+.split-amt-half { display: block; font-size: 11px; color: #e67e22; margin-top: 1px; }
+
+/* ── Filter chips ── */
+.filter-chips { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.chip { background: var(--chip-bg); border: none; border-radius: 50px; padding: 6px 16px; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--text-nav); cursor: pointer; white-space: nowrap; min-height: 44px; display: flex; align-items: center; }
+.chip.active { background: var(--chip-active-bg); color: var(--chip-active-text); }
+
+/* ── Sort & filter buttons ── */
+.sort-btn { background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-family:inherit;font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;min-height:32px; }
+.sort-btn:hover { border-color:var(--green-accent);color:var(--green-accent); }
+.sort-btn.sort-active { background:var(--nav-active-bg);border-color:var(--green-accent);color:var(--green-accent);font-weight:600; }
+.filter-chip-sm { background:none;border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-family:inherit;font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;white-space:nowrap; }
+.filter-chip-sm:hover { border-color:var(--green-accent);color:var(--green-accent); }
+.filter-chip-sm.active { background:var(--green-accent);border-color:var(--green-accent);color:#fff; }
+
+/* ── Saving rows ── */
+.saving-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border-light); font-size: 13px; }
+.saving-row:last-child { border-bottom: none; }
+.saving-row .sr-name { font-weight: 500; }
+.saving-row .sr-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.saving-row .sr-amt { font-weight: 600; color: #1a5fa8; }
+
+/* ── Month pills ── */
+.month-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.month-pill { display: flex; align-items: center; gap: 6px; background: var(--nav-active-bg); border-radius: 50px; padding: 6px 14px; font-size: 12px; font-weight: 500; color: var(--green-accent); border: 1px solid #c5e8a0; }
+.del-month { background: none; border: none; color: #c0392b; cursor: pointer; font-size: 16px; line-height: 1; padding: 0; margin-left: 2px; }
+.danger-btn { background: none; border: 1px solid #f5c6cb; color: #c0392b; border-radius: 8px; padding: 8px 16px; font-family: inherit; font-size: 12px; cursor: pointer; margin-top: 12px; }
+.danger-btn:hover { background: #fff0f0; }
+
+/* ── Search ── */
+.search-bar { display: flex; align-items: center; gap: 10px; background: var(--search-bg); border-radius: 10px; padding: 10px 16px; margin-bottom: 14px; border: 1.5px solid var(--border); }
+.search-bar input { flex: 1; border: none; outline: none; font-family: inherit; font-size: 14px; color: var(--text); background: transparent; }
+.search-bar input::placeholder { color: var(--text-muted); }
+.search-bar .search-icon { color: var(--text-muted); font-size: 15px; }
+.search-clear { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0; display: none; }
+
+/* ── Trend badges ── */
+.trend-up   { display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#c0392b;background:#fce8e6;padding:2px 8px;border-radius:20px; }
+.trend-down { display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#2d6a2d;background:#e8f5e0;padding:2px 8px;border-radius:20px; }
+.trend-flat { display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#6b7c62;background:#f0f4ee;padding:2px 8px;border-radius:20px; }
+
+/* ── Fixed expense rows ── */
+.fixed-row { display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-light);font-size:13px; }
+.fixed-row:last-child { border-bottom:none; }
+.fixed-row .fr-name { font-weight:500; display:flex;align-items:center;gap:8px; }
+.fixed-row .fr-amt  { font-weight:600;color:var(--text); }
+.fixed-row .fr-sub  { font-size:11px;color:var(--text-muted);margin-top:2px; }
+
+/* ── Budget ── */
+.budget-row { padding: 14px 0; border-bottom: 1px solid var(--border-light); }
+.budget-row:last-child { border-bottom: none; }
+.budget-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.budget-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+.budget-amounts { font-size: 12px; color: var(--text-secondary); text-align: right; }
+.budget-amounts .ba-spent { font-weight: 600; color: var(--text); }
+.budget-track { height: 8px; background: var(--budget-track-bg); border-radius: 4px; overflow: hidden; }
+.budget-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.16,1,0.3,1); }
+.budget-input { width: 90px; border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-family: inherit; font-size: 13px; color: var(--text); background: var(--input-bg); text-align: right; outline: none; }
+.budget-input:focus { border-color: var(--green-accent); }
+.budget-status { font-size: 11px; margin-top: 5px; font-weight: 500; }
+
+/* ── Category override select ── */
+.cat-override-sel { background: var(--input-bg); color: var(--text); }

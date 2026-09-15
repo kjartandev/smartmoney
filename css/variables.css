@@ -1,0 +1,55 @@
+/* ── CSS Variables (Light mode) ── */
+:root {
+  --bg: #f0f4ee;
+  --card-bg: #fff;
+  --text: #1a1a1a;
+  --text-muted: #9aab90;
+  --text-secondary: #6b7c62;
+  --text-nav: #4a5e43;
+  --border: #e4eadf;
+  --border-light: #f5f5f5;
+  --sidebar-bg: #fff;
+  --topbar-bg: #2d6a2d;
+  --input-bg: #fff;
+  --chip-bg: #fff;
+  --chip-active-bg: #2d6a2d;
+  --chip-active-text: #fff;
+  --month-cell-bg: #f5f9f2;
+  --month-cell-active-bg: #e8f5e0;
+  --nav-hover-bg: #f5f9f2;
+  --nav-active-bg: #f0f9e8;
+  --search-bg: #fff;
+  --sum-card-bg: #fff;
+  --panel-bg: #fff;
+  --budget-track-bg: #eaeeea;
+  --footer-color: #9aab90;
+  --green-accent: #2d6a2d;
+}
+
+/* ── Dark mode ── */
+body.dark {
+  --bg: #0f1117;
+  --card-bg: #1a1d24;
+  --text: #e8eaf0;
+  --text-muted: #6b7488;
+  --text-secondary: #9da5b4;
+  --text-nav: #b8c4b0;
+  --border: #2a2d35;
+  --border-light: #23262f;
+  --sidebar-bg: #13151c;
+  --topbar-bg: #1a2e1a;
+  --input-bg: #1a1d24;
+  --chip-bg: #1a1d24;
+  --chip-active-bg: #4ade80;
+  --chip-active-text: #0f1117;
+  --month-cell-bg: #1e2330;
+  --month-cell-active-bg: #1a2e1a;
+  --nav-hover-bg: #1e2330;
+  --nav-active-bg: #1a2e1a;
+  --search-bg: #1a1d24;
+  --sum-card-bg: #1a1d24;
+  --panel-bg: #13151c;
+  --budget-track-bg: #2a2d35;
+  --footer-color: #3a3d48;
+  --green-accent: #4ade80;
+}

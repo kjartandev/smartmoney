@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smartmoney</title>
+<link rel="icon" type="image/svg+xml" href="AppIcon.svg">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loadingScreen">
+  <div class="loading-ring-wrap">
+    <svg class="loading-ring" viewBox="0 0 80 80">
+      <circle class="loading-ring-track" cx="40" cy="40" r="35"></circle>
+      <circle class="loading-ring-arc" cx="40" cy="40" r="35"></circle>
+    </svg>
+    <img src="AppIcon.svg" alt="" class="loading-logo">
+  </div>
+  <div class="loading-name">
+    <div class="loading-name-row">
+      <span style="--i:0">S</span><span style="--i:1">m</span><span style="--i:2">a</span><span style="--i:3">r</span><span style="--i:4">t</span>
+    </div>
+    <div class="loading-name-row">
+      <span style="--i:5">M</span><span style="--i:6">o</span><span style="--i:7">n</span><span style="--i:8">e</span><span style="--i:9">y</span>
+    </div>
+  </div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- Upload (first time) -->
+<div id="uploadScreen">
+  <div class="upload-box" id="dropZone">
+    <div class="icon-wrap">📂</div>
+    <h2>Smartmoney</h2>
+    <p>Eksporter CSV fra Sparebanken Møre nettbank og last opp her. Måneder lagres lokalt i nettleseren.</p>
+    <label class="btn-primary" for="fileInput" style="display:block;cursor:pointer">Velg CSV-fil</label>
+    <input type="file" id="fileInput" accept=".csv">
+    <p style="margin-top:16px;font-size:11px;color:#b0bba8">Ingen data sendes noe sted</p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <img src="AppIcon.svg" alt="" class="topbar-logo">
+      <div>
+        <h1><span class="brand-smart">Smart</span><span class="brand-money">Money</span></h1>
+        <div class="period" id="periodLabel">—</div>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div onclick="openPanel('inntekt')" class="stat-block clickable" title="Klikk for å se transaksjoner">
+        <div class="sb-label">Inntekt</div>
+        <div class="sb-val income-val" id="hdrIncome">—</div>
+        <div class="sb-sub" id="hdrIncomeAvg"></div>
+      </div>
+      <div onclick="openPanel('utgifter')" class="stat-block clickable" title="Klikk for å se transaksjoner">
+        <div class="sb-label">Utgifter</div>
+        <div class="sb-val expense-val" id="hdrExpenses">—</div>
+        <div class="sb-sub" id="hdrExpensesAvg"></div>
+      </div>
+      <div onclick="openPanel('sparing')" class="stat-block clickable" title="Klikk for å se transaksjoner">
+        <div class="sb-label">Sparing</div>
+        <div class="sb-val" id="hdrSavings" style="color:#7dd3fc">—</div>
+        <div class="sb-sub" id="hdrSavingsAvg"></div>
+      </div>
+      <div class="stat-block no-hover">
+        <div class="sb-label">Netto</div>
+        <div class="sb-val" id="hdrNet">—</div>
+        <div class="sb-sub">lønn − utgifter</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="top-btn" id="addMonthBtn">+ Legg til måned</button>
+      <div class="tools-wrap" id="toolsWrap">
+        <button class="top-btn" id="toolsBtn">⚙ Verktøy ▾</button>
+        <div class="tools-menu" id="toolsMenu">
+          <button class="tools-item" id="importBackupBtn">↑ Importer backup</button>
+          <div class="tools-divider"></div>
+          <button class="tools-item" id="exportBtn">⬇ Eksporter fil (HTML)</button>
+          <button class="tools-item" id="exportJsonBtn">⬇ Eksporter JSON</button>
+          <button class="tools-item" id="exportCsvBtn">⬇ Eksporter CSV</button>
+          <div class="tools-divider"></div>
+          <button class="tools-item" id="darkModeToggle">🌙 Bytt tema</button>
+          <div class="tools-divider"></div>
+          <div class="tools-item" id="iconPackPickerWrap" style="cursor:default"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="app-body">
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+
+      <!-- Group: Oversikt -->
+      <div class="nav-group" id="navg-oversikt">
+        <div class="nav-group-head active" data-tab="oversikt" data-group="oversikt">
+          <span class="ni-emoji">📊</span><span class="nav-label">Oversikt</span><span class="navg-arrow">▾</span>
+        </div>
+        <div class="nav-group-body" data-group="oversikt" id="navgb-oversikt">
+          <div class="nav-item nav-sub" data-tab="innsikt"><span class="ni-emoji">💡</span><span class="nav-label">Innsikt</span></div>
+        </div>
+      </div>
+
+      <!-- Group: Økonomi -->
+      <div class="nav-group" id="navg-okonomi">
+        <div class="nav-group-head" data-tab="lonnskalk" data-group="okonomi">
+          <span class="ni-emoji">💸</span><span class="nav-label">Økonomi</span><span class="navg-arrow">▸</span>
+        </div>
+        <div class="nav-group-body" data-group="okonomi" id="navgb-okonomi" style="display:none">
+          <div class="nav-item nav-sub" data-tab="lonnskalk"><span class="ni-emoji">🧮</span><span class="nav-label">Lønn</span></div>
+          <div class="nav-item nav-sub" data-tab="budsjett"><span class="ni-emoji">🎯</span><span class="nav-label">Budsjett</span></div>
+          <div class="nav-item nav-sub" data-tab="sparing"><span class="ni-emoji">🏦</span><span class="nav-label">Sparing</span></div>
+        </div>
+      </div>
+
+      <!-- Group: Transaksjoner -->
+      <div class="nav-group" id="navg-transaksjoner">
+        <div class="nav-group-head" data-tab="transaksjoner" data-group="transaksjoner">
+          <span class="ni-emoji">📋</span><span class="nav-label">Transaksjoner</span><span class="navg-arrow">▸</span>
+        </div>
+        <div class="nav-group-body" data-group="transaksjoner" id="navgb-transaksjoner" style="display:none">
+          <div class="nav-item nav-sub" data-tab="uker"><span class="ni-emoji">📆</span><span class="nav-label">Uke for uke</span></div>
+          <div class="nav-item nav-sub" data-tab="folk"><span class="ni-emoji">👥</span><span class="nav-label">Privat</span></div>
+          <div class="nav-item nav-sub" data-tab="maaneder"><span class="ni-emoji">📅</span><span class="nav-label">Måneder</span></div>
+        </div>
+      </div>
+
+      <!-- Standalone: Verktøy -->
+      <div class="nav-item" data-tab="verktoy"><span class="ni-emoji">🧰</span><span class="nav-label">Verktøy</span></div>
+
+      <div class="sidebar-section" style="margin-top:12px">Måneder</div>
+      <div class="year-dropdown-wrap" id="yearDropdownWrap" style="display:none"><button class="year-trigger" id="yearTrigger"><span id="yearLabel">2026</span><span class="yt-arrow">▼</span></button><div class="year-menu" id="yearMenu"></div></div>
+      <div class="month-grid" id="sidebarBarChart"></div>
+      <div class="chart-legend">
+        <div class="leg"><div class="leg-dot" style="background:#4caf50"></div>Inntekt</div>
+        <div class="leg"><div class="leg-dot" style="background:#ff9800"></div>Utgifter</div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="mainContent"></div>
+
+  </div>
+</div>
+
+<div id="slidePanel">
+  <div class="panel-header">
+    <h2 id="panelTitle">—</h2>
+    <button class="panel-close" id="panelClose">×</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</div>
+<div id="panelOverlay"></div>
+<div id="toast"></div>
+
+<input type="file" id="fileInputHidden" accept=".csv" style="display:none">
+<input type="file" id="fileInputBackup" accept=".html,.json" style="display:none">
+
+<footer class="app-footer">Made by KKDJ</footer>
+
+<!-- Core (must load first — storage, state, utilities) -->
+<script src="js/core.js"></script>
+<script src="js/icons.js"></script>
+<!-- UI (topbar, sidebar, nav, dark mode, toast, panel) -->
+<script src="js/ui.js"></script>
+<!-- Tabs (each self-contained, no cross-dependencies between tabs) -->
+<script src="js/tabs/oversikt.js"></script>
+<script src="js/tabs/kategorier.js"></script>
+<script src="js/tabs/transaksjoner.js"></script>
+<script src="js/tabs/sparing.js"></script>
+<script src="js/tabs/maaneder.js"></script>
+<script src="js/tabs/folk.js"></script>
+<script src="js/tabs/uker.js"></script>
+<script src="js/tabs/innsikt.js"></script>
+<script src="js/tabs/budsjett.js"></script>
+<script src="js/tabs/vakt.js"></script>
+<script src="js/tabs/lonn.js"></script>
+<script src="js/tabs/verktoy.js"></script>
+<!-- IO (import/export, backup, file handling) -->
+<script src="js/io.js"></script>
+<!-- Main (boot, events — must load last) -->
+<script src="js/main.js"></script>
+<script src="livereload.js"></script>
+</body>
+</html>

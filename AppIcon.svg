@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f4d1f"/>
+      <stop offset="100%" stop-color="#153315"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4caf50"/>
+      <stop offset="100%" stop-color="#8bd66f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+
+  <!-- Growth arrow -->
+  <path d="M 230 700 L 460 470 L 610 590 L 830 330"
+    fill="none" stroke="url(#arrow)" stroke-width="56"
+    stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Arrowhead -->
+  <path d="M 830 330 L 700 320 M 830 330 L 820 460"
+    fill="none" stroke="url(#arrow)" stroke-width="56"
+    stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Coin dot at base of arrow -->
+  <circle cx="230" cy="700" r="46" fill="#ffffff"/>
+  <circle cx="610" cy="590" r="30" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Kr symbol -->
+  <text x="512" y="900" font-family="SF Pro Display, Helvetica Neue, Arial, sans-serif"
+    font-size="80" font-weight="700" fill="#ffffff" text-anchor="middle" opacity="0.85">kr</text>
+</svg>

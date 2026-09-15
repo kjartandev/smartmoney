@@ -1,0 +1,87 @@
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  .topbar-brand {
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    padding: 14px 16px;
+  }
+  .topbar-brand h1 { font-size: 18px; }
+  .topbar-stats {
+    padding: 0 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .topbar-stats::-webkit-scrollbar { display: none; }
+  .stat-block { padding: 12px 16px; }
+  .stat-block .sb-val { font-size: 17px; }
+  .topbar-actions {
+    padding: 8px 12px;
+    gap: 6px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .topbar-actions::-webkit-scrollbar { display: none; }
+  .top-btn { padding: 6px 12px; font-size: 12px; min-height: 36px; }
+
+  .app-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    padding: 0;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    flex-shrink: 0;
+    height: 60px;
+    align-items: stretch;
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .sidebar-section { display: none; }
+  .year-dropdown-wrap { display: none !important; }
+  .month-grid { display: none; }
+  .chart-legend { display: none; }
+  .nav-item {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 12px;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    min-height: 60px;
+    font-size: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--green-accent);
+  }
+  .nav-item .ni-emoji { font-size: 20px; width: auto; }
+  .nav-label { display: block; }
+
+  .content { padding: 16px; overflow-y: auto; flex: 1; }
+  .two-col, .summary-grid { grid-template-columns: 1fr; }
+  .card { overflow-x: auto; }
+  .tx-table { min-width: 480px; }
+
+  #slidePanel { width: 100%; right: -100%; }
+  #slidePanel.open { right: 0; }
+  .upload-box { width: 90vw; padding: 32px 24px; }
+}
+
+@media (max-width: 480px) {
+  .nav-label { display: none; }
+}
