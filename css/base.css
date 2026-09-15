@@ -1,73 +1,211 @@
 /* ── Reset & base ── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* Thin, theme-aware scrollbars app-wide — a native fat scrollbar looks out of
+   place against the rounded, low-contrast UI (e.g. the slide panel's transaction list) */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+/* Hide native number input spin buttons app-wide — keeps custom-styled inputs seamless */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+/* The app shell (loading/upload/main screens) is always sized to exactly one
+   viewport, with every scrollable region (.content, .sidebar, .panel-body, …)
+   scrolling internally — so the outer page itself never needs to scroll, and
+   no page-level scrollbar can appear behind the fixed loading screen. */
+html, body { height: 100%; overflow: hidden; }
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
   transition: background 0.2s, color 0.2s;
+}
+
+@keyframes confirmFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes confirmPop {
+  0%   { opacity: 0; transform: scale(0.85) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes goalBannerPop {
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  60%  { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes goalBannerOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes moneyFall {
+  0%   { transform: translate(0, -140px) rotate(0deg); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), 110vh) rotate(380deg); opacity: 0; }
+}
+.shake-effect {
+  animation: screenShake 0.4s ease-in-out;
+}
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-8px, 4px); }
+  40% { transform: translate(8px, -4px); }
+  60% { transform: translate(-6px, -3px); }
+  80% { transform: translate(6px, 3px); }
+}
+@keyframes redFlash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* ── Loading screen ── */
 #loadingScreen {
-  position: fixed; inset: 0; z-index: 9999;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 32px;
-  background: var(--bg);
+  /* Height via --shell-h, not inset:0 — a fixed box is still scaled by the root
+     zoom, so inset:0 would make it 100vh × zoom tall and center its contents
+     against that taller box, sitting them noticeably below the true centre. */
+  position: fixed; top: 0; left: 0; right: 0; height: var(--shell-h); z-index: 9999;
+  display: flex; flex-direction: row; align-items: center; justify-content: center;
+  gap: 0;
+  /* Single solid color, not a fade — AppIcon.svg's own darker green.
+     Overridden to black below for dark mode, so the loading screen still
+     reacts to the theme toggle instead of staying fixed green always. */
+  background: #1f4d1f;
   transition: opacity 0.35s ease;
+  overflow: hidden;
 }
 #loadingScreen.hidden {
   opacity: 0;
   pointer-events: none;
 }
+body.dark #loadingScreen {
+  background: #0a0a0a;   /* same near-black as the rest of dark mode, not green */
+}
 
-#loadingScreen .loading-ring-wrap {
+/* Ambient bill rain, full-screen, sitting above the watermark icon but below
+   the name + arrow foreground (js/main.js, initLoadingRain). */
+#loadingScreen .loading-rain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Large, faint watermark centered directly behind the canvas arrow (not the
+   whole screen) — same wrapper, so its center always matches the arrow's.
+   Scaled down as one unit (not by touching the canvas's own pixel math in
+   main.js) so the watermark and the arrow shrink together, staying in the
+   same proportion to each other — a shrink-only transform stays crisp. */
+#loadingScreen .loading-arrow-wrap {
   position: relative;
-  width: 200px; height: 200px;
-  display: flex; align-items: center; justify-content: center;
-  animation: loading-pop 0.55s cubic-bezier(.34,1.56,.64,1) both;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Kept in step with the text size below — when one grows, the other grows
+     by the same proportion, so their relative sizing stays put instead of
+     drifting whenever either gets tuned on its own. */
+  transform: scale(0.6);
+  /* The scale above shrinks what's drawn but not the element's own layout
+     box (transforms never do), leaving an invisible rim of empty space all
+     the way around it. Trimmed on the right down to a small gap (facing the
+     text), and trimmed away entirely on the left — otherwise that leftover
+     rim only gets removed on one side, so the *visible* arrow+text group's
+     true center drifts off the screen's actual center even though the flex
+     row itself is centered. */
+  margin: 0 -50px 0 -60px;
 }
-#loadingScreen .loading-ring {
-  position: absolute; inset: 0;
-  width: 200px; height: 200px;
-  transform: rotate(-90deg);
-  animation: loading-spin 1.6s linear infinite;
-}
-#loadingScreen .loading-ring-track {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 3.5;
-}
-#loadingScreen .loading-ring-arc {
-  fill: none;
-  stroke: #2d6a2d;
-  stroke-width: 3.5;
-  stroke-linecap: round;
-  stroke-dasharray: 220;
-  stroke-dashoffset: 165;
-  animation: loading-arc 1.6s ease-in-out infinite;
-}
-#loadingScreen .loading-logo {
-  width: 122px; height: 122px;
-  border-radius: 30px;
-  position: relative; z-index: 1;
+#loadingScreen .loading-bg-icon {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 340px; height: 340px;
+  transform: translate(-50%, -50%) scale(0.85);
+  opacity: 0;
+  z-index: 0;
+  animation: loading-bg-pop 1.1s cubic-bezier(.34,1.56,.64,1) both,
+             loading-bg-breathe 5s ease-in-out 1.1s infinite;
 }
 
 #loadingScreen .loading-name {
+  position: relative;
+  z-index: 1;
   font-family: 'DM Sans', system-ui, sans-serif;
   font-weight: 700;
-  color: var(--text);
   letter-spacing: 0.5px;
-  text-align: center;
+  text-align: left;
 }
 #loadingScreen .loading-name-row {
   display: flex;
-  justify-content: center;
-  font-size: 52px;
-  line-height: 1.15;
+  justify-content: flex-start;
+  /* Paired with .loading-arrow-wrap's scale above — both were bumped up together. */
+  font-size: 114px;
+  line-height: 1.1;
+}
+#loadingScreen .loading-name-row:first-child {
+  /* Fixed white (not var(--text), which flips dark/light per theme) — the
+     background is now a fixed solid color, not the theme bg, so "Smart"
+     needs its own fixed color to match. Shadow lifts it off that ground. */
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 #loadingScreen .loading-name-row:last-child {
-  color: #2d6a2d;
+  position: relative;
+  color: var(--green-accent);   /* fallback for browsers without background-clip:text */
+  /* line-height leaves each row extra breathing room above/below its own
+     text (needed so the "y" descender isn't clipped) — pull "Money" up into
+     that spare room rather than shrinking line-height itself. */
+  margin-top: -22px;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.55)) drop-shadow(0 4px 10px rgba(0,0,0,0.3));
+}
+/* "Money" — same treatment as the topbar's version (see layout.css's
+   .topbar-brand h1 .brand-money): same 9 sparkle flecks, same colors, same
+   topbar-money-shine animation (defined in layout.css — keyframe lookup is
+   global, not tied to file load order), just faster (see below). Applied
+   per-letter (each its own <span>, for the entrance animation), and each
+   letter's shine is delayed a bit more than the previous one via --i, so it
+   visibly travels letter-by-letter left to right instead of every letter
+   flaring in sync. Vertical base gradient so every letter shows the
+   identical band with no seam at the letter boundaries. */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  #loadingScreen .loading-name-row:last-child span {
+    background:
+      linear-gradient(120deg, transparent 35%, rgba(255,255,255,0.65) 48%, transparent 62%),
+      radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.85) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.75) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.85) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%),
+      linear-gradient(180deg, #a8e08f 0%, #5cbf5a 45%, #2d6a2d 100%);
+    background-size: 300% 100%, 5% 5%, 4% 4%, 3.5% 3.5%, 4.5% 4.5%, 3% 3%, 5.5% 5.5%, 4% 4%, 3.5% 3.5%, 4.5% 4.5%, 100% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* Independent of the (transparent) fill — a thin dark edge so the glyph
+       shape stays defined against the flat dark backdrop. */
+    -webkit-text-stroke: 0.6px rgba(10,30,10,0.4);
+    /* Same keyframe as the topbar, but much faster — topbar-money-shine's 12s
+       cycle spends most of its time with the shine band off-screen (fine when
+       something is visible for minutes; the loading screen is only up for
+       ~3.1s total, so at 12s the sweep never actually crossed into view in
+       that window — only the sparkles, whose positions stay on-screen the
+       whole time, ever showed). */
+    animation: loading-letter 0.5s ease forwards, topbar-money-shine 2.6s linear infinite alternate;
+    animation-delay: calc(0.35s + var(--i) * 0.05s), calc((var(--i) - 5) * 0.25s);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #loadingScreen .loading-name-row:last-child span {
+    animation: loading-letter 0.5s ease forwards;
+  }
 }
 #loadingScreen .loading-name span {
   display: inline-block;
@@ -76,43 +214,31 @@ body {
   animation-delay: calc(0.35s + var(--i) * 0.05s);
 }
 
-#loadingScreen .loading-bar {
-  width: 220px; height: 5px;
-  border-radius: 3px;
-  background: var(--border);
-  overflow: hidden;
-  margin-top: 10px;
-}
-#loadingScreen .loading-bar-fill {
-  width: 40%; height: 100%;
-  border-radius: 3px;
-  background: #2d6a2d;
-  animation: loading-bar-sweep 1.1s ease-in-out infinite;
+/* Growth-arrow loader: now a <canvas> driven by requestAnimationFrame (js/main.js,
+   initLoadingCanvas) instead of SVG/SMIL — see that function for the drawing logic. */
+#loadingScreen .loading-dots {
+  position: relative;
+  z-index: 1;
+  display: block;
 }
 
-@keyframes loading-pop {
-  0%   { opacity: 0; transform: scale(0.6); }
-  100% { opacity: 1; transform: scale(1); }
+@keyframes loading-bg-pop {
+  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.7); }
+  100% { opacity: 0.07; transform: translate(-50%, -50%) scale(0.85); }
 }
-@keyframes loading-spin { to { transform: rotate(270deg); } }
-@keyframes loading-arc {
-  0%   { stroke-dashoffset: 195; }
-  50%  { stroke-dashoffset: 40; }
-  100% { stroke-dashoffset: 195; }
+@keyframes loading-bg-breathe {
+  0%, 100% { opacity: 0.07; transform: translate(-50%, -50%) scale(0.85); }
+  50%      { opacity: 0.1;  transform: translate(-50%, -50%) scale(0.92); }
 }
 @keyframes loading-letter {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes loading-bar-sweep {
-  0%   { transform: translateX(-120%); }
-  100% { transform: translateX(300%); }
-}
 
 /* ── Upload screen ── */
 #uploadScreen {
   display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; background: var(--bg);
+  height: var(--shell-h); background: var(--bg);
 }
 .upload-box {
   background: var(--card-bg); border-radius: 20px; padding: 48px 52px;
@@ -134,11 +260,20 @@ body {
 #fileInput { display: none; }
 
 /* ── App shell ── */
-#app { display: none; min-height: 100vh; flex-direction: column; }
+/* main.js zooms <html> (applyAppZoom) so the layout resolves at DESIGN_WIDTH on
+   every screen. Viewport units ignore that zoom: 100vh resolves against the
+   unzoomed viewport and the box is then scaled by the zoom factor, so a plain
+   height:100vh shell renders 100vh × zoom tall — on a 913px viewport at zoom
+   1.2 that's 1097px, pushing the footer permanently below the visible area now
+   that the page itself no longer scrolls. --shell-h divides the zoom back out. */
+#app { display: none; height: var(--shell-h); flex-direction: column; }
 #app.visible { display: flex; flex-direction: column; }
 
 /* ── Content area ── */
-.content { padding: 28px 32px; overflow-y: auto; background: var(--bg); transition: background 0.2s; }
+/* min-height:0 makes the grid item respect its track height instead of
+   growing to fit content — without it, overflow-y:auto never engages and a
+   tall tab (e.g. Sparing) has nowhere to scroll now that the outer page can't. */
+.content { padding: 28px 32px; overflow-y: auto; min-height: 0; background: var(--bg); transition: background 0.2s; }
 
 .section-head { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.8px; text-transform: uppercase; margin: 28px 0 12px; }
 .section-head:first-child { margin-top: 0; }

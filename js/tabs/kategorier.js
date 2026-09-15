@@ -4,7 +4,7 @@ function renderKategorierInto(container) {
   container.innerHTML = '';
 
   const data      = getFiltered();
-  const expenses  = data.filter(t => !['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
+  const expenses  = data.filter(t => !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
   const reselling = data.filter(t => t.cat === 'reselling');
   const catTotals = {}; const catTxs = {};
   for (const tx of expenses) {
@@ -52,10 +52,10 @@ function renderKategorierInto(container) {
     }
     const isDark = document.body.classList.contains('dark');
     ctx.beginPath(); ctx.arc(cx,cy,inner,0,Math.PI*2);
-    ctx.fillStyle = isDark ? '#1a1d24' : '#fff'; ctx.fill();
-    ctx.fillStyle = isDark ? '#e8eaf0' : '#1a1a1a'; ctx.font = '600 11px DM Sans,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = isDark ? '#141414' : '#fff'; ctx.fill();
+    ctx.fillStyle = isDark ? '#f2f2f2' : '#1a1a1a'; ctx.font = '600 11px DM Sans,sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(fmt(total).replace(' kr',''), cx, cy-3);
-    ctx.fillStyle = isDark ? '#6b7488' : '#9aab90'; ctx.font = '400 9px DM Sans,sans-serif';
+    ctx.fillStyle = isDark ? '#7a7a7a' : '#9aab90'; ctx.font = '400 9px DM Sans,sans-serif';
     ctx.fillText('totalt', cx, cy+9);
   }, 50);
 
@@ -102,7 +102,7 @@ function renderKategorierInto(container) {
     wrap.addEventListener('mouseleave', () => wrap.style.boxShadow='');
     const header = document.createElement('div');
     header.className='cat-row'; header.style.cssText='padding:0;border:none;cursor:pointer;user-select:none';
-    header.innerHTML=`<div class="cat-dot" style="background:#26a69a"></div><div class="cr-name">🏷️ Salg / Reselling</div><div class="cr-bar-wrap" style="width:200px"><div class="cr-bar" style="width:100%;background:#26a69a"></div></div><div class="cr-pct">inn</div><div class="cr-amt" style="color:#26a69a">+${fmt(resellingTotal)}</div><div class="toggle-arrow" style="margin-left:12px;font-size:12px;color:var(--text-muted);transition:transform 0.2s">▼</div>`;
+    header.innerHTML=`<div class="cat-dot" style="background:#26a69a"></div><div class="cr-name">${icon('reselling',{size:14})} Salg / Reselling</div><div class="cr-bar-wrap" style="width:200px"><div class="cr-bar" style="width:100%;background:#26a69a"></div></div><div class="cr-pct">inn</div><div class="cr-amt" style="color:#26a69a">+${fmt(resellingTotal)}</div><div class="toggle-arrow" style="margin-left:12px;font-size:12px;color:var(--text-muted);transition:transform 0.2s">▼</div>`;
     const txPanel = document.createElement('div');
     txPanel.style.cssText='display:none;margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px';
     txPanel.innerHTML=`<table class="tx-table"><thead><tr><th>Dato</th><th>Beskrivelse</th><th style="text-align:right">Beløp</th></tr></thead><tbody>${[...reselling].sort((a,b)=>pd(b.dato)-pd(a.dato)).map(tx=>`<tr><td style="color:var(--text-muted);font-size:12px;width:90px">${tx.dato}</td><td class="tx-name-cell"><span class="tn">${tx.beskr}</span></td><td style="text-align:right;font-weight:600;color:#26a69a">+${fmt(tx.inn)}</td></tr>`).join('')}</tbody></table><div style="font-size:12px;color:#26a69a;font-weight:600;margin-top:10px;text-align:right">${reselling.length} transaksjoner · totalt +${fmt(resellingTotal)}</div>`;

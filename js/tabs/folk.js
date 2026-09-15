@@ -9,7 +9,7 @@ function renderFolk() {
   const netto    = totalInn - totalUt;
   const makeRows = (txs, dir) => txs.map(tx=>`
     <tr>
-      <td><div class="tx-icon-sm" style="background:${dir==='inn'?'#e8f5e9':'#fce8e6'}">👤</div></td>
+      <td><div class="tx-icon-sm" style="background:${dir==='inn'?'#e8f5e9':'#fce8e6'};color:${dir==='inn'?'#2d6a2d':'#c0392b'}">${icon('person',{size:14})}</div></td>
       <td class="tx-name-cell"><span class="tn">${tx.beskr}</span></td>
       <td style="color:var(--text-muted);font-size:12px">${tx.dato}</td>
       <td class="${dir==='inn'?'tx-amt-inn':'tx-amt-out'}">${dir==='inn'?'+'+fmt(tx.inn):'-'+fmt(tx.ut)}</td>

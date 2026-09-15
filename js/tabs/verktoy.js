@@ -95,7 +95,7 @@ function renderSkattekalkulatorCalc(container) {
   const iSt = 'padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:600;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit;box-sizing:border-box';
 
   container.innerHTML = `
-    <div style="font-weight:600;font-size:14px;margin-bottom:14px">🧮 Skattekalkulator</div>
+    <div style="font-weight:600;font-size:14px;margin-bottom:14px">${icon('kalkulator',{size:14})} Skattekalkulator</div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:14px;align-items:end">
       <div>
         <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Årslønn (brutto)</label>
@@ -175,6 +175,97 @@ function renderSkattekalkulatorCalc(container) {
   if (saved.aarslonn) update();
 }
 
+// ── Årslønn & skatt hittil (manuell tracker fra lønnslipp) ────────
+const LONN_SKATT_TRACKER_KEY = 'okonomi_lonn_skatt_tracker_v1';
+
+function lsSaveExact(lonn, skatt) {
+  const curYear = new Date().getFullYear();
+  localStorage.setItem(LONN_SKATT_TRACKER_KEY, JSON.stringify({
+    aar: curYear, lonnHittil: lonn, skattHittil: skatt, updatedAt: new Date().toISOString(),
+  }));
+}
+
+function renderLonnSkattTracker(container) {
+  const saved = JSON.parse(localStorage.getItem(LONN_SKATT_TRACKER_KEY) || '{}');
+  const curYear = new Date().getFullYear();
+  const isStaleYear = saved.aar && saved.aar !== curYear;
+  const lonnHittil  = isStaleYear ? 0 : (saved.lonnHittil  || 0);
+  const skattHittil = isStaleYear ? 0 : (saved.skattHittil || 0);
+  const iSt = 'padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:600;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit;box-sizing:border-box';
+
+  const kr = v => Math.round(v).toLocaleString('nb-NO') + ' kr';
+  const netto = lonnHittil - skattHittil;
+  const pct   = lonnHittil > 0 ? skattHittil / lonnHittil * 100 : 0;
+
+  container.innerHTML = `
+    <div style="font-weight:600;font-size:14px;margin-bottom:14px">${icon('skatt',{size:14})} Årslønn &amp; skatt</div>
+    ${isStaleYear ? `<div style="font-size:11px;color:#f59e0b;margin-bottom:10px">Sist oppdatert i ${saved.aar} — start på nytt for ${curYear}.</div>` : ''}
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:var(--chip-bg);border-radius:10px;padding:12px">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Lønn hittil</div>
+        <input id="lsLonnHittil" type="number" value="${lonnHittil || ''}" placeholder="0" style="border:none;background:transparent;padding:0;font-size:14px;font-weight:700;color:var(--text);width:100%;font-family:inherit">
+      </div>
+      <div style="background:var(--chip-bg);border-radius:10px;padding:12px">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Skatt hittil</div>
+        <input id="lsSkattHittil" type="number" value="${skattHittil || ''}" placeholder="0" style="border:none;background:transparent;padding:0;font-size:14px;font-weight:700;color:#f44336;width:100%;font-family:inherit">
+      </div>
+      <div style="background:var(--chip-bg);border-radius:10px;padding:12px">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Netto hittil</div>
+        <div style="font-size:14px;font-weight:700;color:#4caf50">${kr(netto)}</div>
+      </div>
+    </div>
+    ${lonnHittil > 0 ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;text-align:center">Effektiv skatt hittil: <strong style="color:var(--text)">${pct.toFixed(1)}%</strong></div>` : ''}
+
+    <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px">Legg til denne måneden (fra lønnslipp)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Lønn denne måneden</label>
+        <input id="lsAddLonn" type="number" placeholder="F.eks. 32000" style="${iSt}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Skatt denne måneden</label>
+        <input id="lsAddSkatt" type="number" placeholder="F.eks. 6900" style="${iSt}">
+      </div>
+    </div>
+    <button id="lsAddBtn" style="width:100%;padding:9px;background:var(--green-accent);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;margin-bottom:6px">Legg til</button>
+    <div id="lsAddPreview" style="font-size:11px;color:var(--text-muted);text-align:center;min-height:14px"></div>`;
+
+  const saveExactField = (input, key) => {
+    const v = parseFloat(input.value) || 0;
+    const cur = JSON.parse(localStorage.getItem(LONN_SKATT_TRACKER_KEY) || '{}');
+    const l = key === 'lonnHittil'  ? v : (isStaleYear ? 0 : (cur.lonnHittil  || 0));
+    const s = key === 'skattHittil' ? v : (isStaleYear ? 0 : (cur.skattHittil || 0));
+    lsSaveExact(l, s);
+    renderLonnSkattTracker(container);
+    showToast('Lagret');
+  };
+  const lonnInp = container.querySelector('#lsLonnHittil');
+  const skattInp = container.querySelector('#lsSkattHittil');
+  lonnInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveExactField(lonnInp, 'lonnHittil'); } });
+  skattInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveExactField(skattInp, 'skattHittil'); } });
+
+  const addLonnInp = container.querySelector('#lsAddLonn');
+  const addSkattInp = container.querySelector('#lsAddSkatt');
+  const preview = container.querySelector('#lsAddPreview');
+  const updatePreview = () => {
+    const dl = parseFloat(addLonnInp.value) || 0;
+    const ds = parseFloat(addSkattInp.value) || 0;
+    if (!dl && !ds) { preview.textContent = ''; return; }
+    preview.textContent = `Ny sum: ${kr(lonnHittil + dl)} lønn · ${kr(skattHittil + ds)} skatt`;
+  };
+  addLonnInp.addEventListener('input', updatePreview);
+  addSkattInp.addEventListener('input', updatePreview);
+  container.querySelector('#lsAddBtn').addEventListener('click', () => {
+    const dl = parseFloat(addLonnInp.value) || 0;
+    const ds = parseFloat(addSkattInp.value) || 0;
+    if (!dl && !ds) return;
+    lsSaveExact(lonnHittil + dl, skattHittil + ds);
+    renderLonnSkattTracker(container);
+    showToast('Lagt til');
+  });
+}
+
 // ── Sparemål Calculator ──────────────────────────────────────────
 const SPAREMAAL_CALC_KEY = 'okonomi_sparemaal_calc_v1';
 
@@ -183,7 +274,7 @@ function renderSparemaalCalc(container) {
   const iSt = 'padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit;box-sizing:border-box';
 
   container.innerHTML = `
-    <div style="font-weight:600;font-size:14px;margin-bottom:14px">🎯 Sparemål-kalkulator</div>
+    <div style="font-weight:600;font-size:14px;margin-bottom:14px">${icon('budsjett',{size:14})} Sparemål-kalkulator</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div>
         <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Målbeløp</label>
@@ -263,6 +354,264 @@ function renderSparemaalCalc(container) {
   if (saved.target) update();
 }
 
+// ── Abonnementer (subscriptions tracker) ─────────────────────────
+const ABONNEMENT_KEY = 'okonomi_abonnementer_v1';
+
+function loadAbonnementer() {
+  try { return JSON.parse(localStorage.getItem(ABONNEMENT_KEY) || '[]'); } catch { return []; }
+}
+function saveAbonnementer(list) {
+  localStorage.setItem(ABONNEMENT_KEY, JSON.stringify(list));
+}
+
+// Next occurrence of "day" from today, clamped to short months (e.g. day 31 in April → April 30)
+function nextBillingInfo(day) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const clampDay = (y, m) => Math.min(day, new Date(y, m + 1, 0).getDate());
+  let y = now.getFullYear(), m = now.getMonth();
+  let next = new Date(y, m, clampDay(y, m));
+  if (next < today) {
+    m += 1;
+    if (m > 11) { m = 0; y += 1; }
+    next = new Date(y, m, clampDay(y, m));
+  }
+  const daysUntil = Math.round((next - today) / 86400000);
+  return { date: next, daysUntil };
+}
+
+// Modal for adding a new subscription — icon picker + navn/pris/dag, then hands
+// the finished object back via onAdd (kept out of the card so it doesn't sit
+// on screen permanently).
+function openAddAbonnementModal(onAdd) {
+  const iSt = 'padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit;box-sizing:border-box';
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.55);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;animation:confirmFadeIn 0.15s ease';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--card-bg);color:var(--text);border-radius:18px;padding:22px 24px;max-width:380px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.35);font-family:inherit;animation:confirmPop 0.22s cubic-bezier(.34,1.56,.64,1)';
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700">Legg til abonnement</div>
+      <button id="aboModalCloseBtn" style="padding:2px 8px;font-size:18px;line-height:1;color:var(--text-muted);background:none;border:none;border-radius:6px;cursor:pointer">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:52px 1fr;gap:8px;margin-bottom:10px">
+      <input id="aboEmojiInput" type="text" maxlength="4" readonly value="💳"
+        style="${iSt};text-align:center;font-size:18px;padding:8px 0;cursor:pointer">
+      <input id="aboModalName" type="text" placeholder="F.eks. Netflix" style="${iSt}">
+    </div>
+    <div id="aboEmojiPickerSlot"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Pris/mnd</label>
+        <input id="aboModalPrice" type="number" placeholder="149" style="${iSt}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Dag i mnd</label>
+        <input id="aboModalDay" type="number" min="1" max="31" placeholder="15" style="${iSt}">
+      </div>
+    </div>
+    <button id="aboModalAddBtn" style="width:100%;padding:9px;background:var(--green-accent);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">Legg til</button>`;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  let backNav = null;
+  const close = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', escHandler);
+    if (backNav) { const c = backNav; backNav = null; c(); }
+  };
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  box.querySelector('#aboModalCloseBtn').addEventListener('click', close);
+  const escHandler = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', escHandler);
+  backNav = bindBackNav(overlay, close);
+
+  const emojiInput = box.querySelector('#aboEmojiInput');
+  const emojiSlot  = box.querySelector('#aboEmojiPickerSlot');
+  emojiInput.addEventListener('click', () => {
+    openEmojiPicker(emojiSlot, emojiInput, emoji => { emojiInput.value = emoji; });
+  });
+
+  const nameInp  = box.querySelector('#aboModalName');
+  const priceInp = box.querySelector('#aboModalPrice');
+  const dayInp   = box.querySelector('#aboModalDay');
+
+  const submit = () => {
+    const name  = nameInp.value.trim();
+    const price = parseFloat(priceInp.value) || 0;
+    const day   = Math.min(31, Math.max(1, parseInt(dayInp.value) || 0));
+    if (!name || price <= 0 || !day) { showToast('Fyll ut navn, pris og dag'); return; }
+    const emoji = emojiInput.value.trim() || '💳';
+    close();
+    onAdd({ id: Date.now(), name, price, day, emoji, active: true });
+  };
+  box.querySelector('#aboModalAddBtn').addEventListener('click', submit);
+  [nameInp, priceInp, dayInp].forEach(inp => inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  }));
+  nameInp.focus();
+}
+
+function renderAbonnementerCard(container) {
+  const iSt = 'padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit;box-sizing:border-box';
+  let editingId = null;
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-weight:600;font-size:14px">${icon('abonnement',{size:14})} Abonnementer</div>
+      <button id="aboAddOpenBtn" style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--green-accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">${icon('add',{size:12})} Legg til</button>
+    </div>
+    <div id="aboSummary"></div>
+    <div id="aboList" style="display:flex;flex-direction:column;gap:8px;margin-top:14px"></div>`;
+
+  container.querySelector('#aboAddOpenBtn').addEventListener('click', () => {
+    openAddAbonnementModal(sub => {
+      const list = loadAbonnementer();
+      list.push(sub);
+      saveAbonnementer(list);
+      renderList();
+      showToast('Lagt til');
+    });
+  });
+
+  function renderSummary(list) {
+    const summary = container.querySelector('#aboSummary');
+    if (!list.length) { summary.innerHTML = ''; return; }
+    const active = list.filter(s => s.active);
+    const totalMonthly = active.reduce((sum, s) => sum + s.price, 0);
+    summary.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div style="background:var(--chip-bg);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Per mnd</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">${fmt(totalMonthly)}</div>
+        </div>
+        <div style="background:var(--chip-bg);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Per år</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">${fmt(totalMonthly * 12)}</div>
+        </div>
+        <div style="background:var(--chip-bg);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Aktive</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">${active.length}</div>
+        </div>
+      </div>`;
+  }
+
+  function renderList() {
+    const list = loadAbonnementer();
+    renderSummary(list);
+    const listEl = container.querySelector('#aboList');
+
+    if (!list.length) {
+      listEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px 0">Ingen abonnementer lagt til ennå.</div>`;
+      return;
+    }
+
+    const withInfo = list.map(s => ({ ...s, info: nextBillingInfo(s.day) }));
+    withInfo.sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      return a.info.daysUntil - b.info.daysUntil;
+    });
+
+    listEl.innerHTML = withInfo.map(s => {
+      const emoji = s.emoji || '💳';
+      if (editingId === s.id) {
+        return `
+        <div class="aboEditRow" data-id="${s.id}" style="background:var(--chip-bg);border-radius:10px;padding:10px 12px">
+          <div style="display:grid;grid-template-columns:44px 1.4fr 1fr 1fr auto;gap:8px;align-items:center">
+            <input class="aboEditEmoji" type="text" maxlength="4" readonly value="${emoji}"
+              style="width:44px;height:36px;text-align:center;font-size:18px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--text);cursor:pointer">
+            <input class="aboEditName" type="text" value="${s.name}" style="${iSt};padding:6px 8px">
+            <input class="aboEditPrice" type="number" value="${s.price}" style="${iSt};padding:6px 8px">
+            <input class="aboEditDay" type="number" min="1" max="31" value="${s.day}" style="${iSt};padding:6px 8px">
+            <div style="display:flex;gap:4px">
+              <button class="aboSaveBtn" data-id="${s.id}" style="padding:6px 10px;border:none;border-radius:6px;background:var(--green-accent);color:#fff;font-size:12px;cursor:pointer;font-weight:600">✓</button>
+              <button class="aboCancelBtn" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text);font-size:12px;cursor:pointer">✕</button>
+            </div>
+          </div>
+          <div class="aboEditEmojiSlot"></div>
+        </div>`;
+      }
+
+      const badgeColor = !s.active ? 'var(--text-muted)' : s.info.daysUntil <= 3 ? '#f59e0b' : 'var(--text-muted)';
+      const badgeText  = !s.active ? 'Pauset' : s.info.daysUntil === 0 ? 'I dag' : s.info.daysUntil === 1 ? 'I morgen' : `om ${s.info.daysUntil} dager`;
+
+      return `
+      <div style="background:var(--chip-bg);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:${s.active ? '1' : '0.55'}">
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--input-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${emoji}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Dag ${s.day} i mnd</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${fmt(s.price)}</div>
+          <div style="font-size:10px;font-weight:600;color:${badgeColor}">${badgeText}</div>
+        </div>
+        <div style="display:flex;gap:2px">
+          <button class="aboPauseBtn" data-id="${s.id}" title="${s.active ? 'Pause' : 'Gjenoppta'}" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:14px">${s.active ? '⏸' : '▶'}</button>
+          <button class="aboEditBtn" data-id="${s.id}" title="Rediger" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:14px">✎</button>
+          <button class="aboDeleteBtn" data-id="${s.id}" title="Slett" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:14px">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('.aboEditRow').forEach(row => {
+      const emojiInput = row.querySelector('.aboEditEmoji');
+      const emojiSlot  = row.querySelector('.aboEditEmojiSlot');
+      emojiInput.addEventListener('click', () => {
+        openEmojiPicker(emojiSlot, emojiInput, emoji => { emojiInput.value = emoji; });
+      });
+    });
+
+    listEl.querySelectorAll('.aboPauseBtn').forEach(btn => btn.addEventListener('click', () => {
+      const id = Number(btn.dataset.id);
+      const l = loadAbonnementer();
+      const item = l.find(s => s.id === id);
+      if (item) { item.active = !item.active; saveAbonnementer(l); renderList(); }
+    }));
+
+    listEl.querySelectorAll('.aboEditBtn').forEach(btn => btn.addEventListener('click', () => {
+      editingId = Number(btn.dataset.id);
+      renderList();
+    }));
+
+    listEl.querySelectorAll('.aboCancelBtn').forEach(btn => btn.addEventListener('click', () => {
+      editingId = null;
+      renderList();
+    }));
+
+    listEl.querySelectorAll('.aboSaveBtn').forEach(btn => btn.addEventListener('click', () => {
+      const id  = Number(btn.dataset.id);
+      const row = btn.closest('.aboEditRow');
+      const name  = row.querySelector('.aboEditName').value.trim();
+      const price = parseFloat(row.querySelector('.aboEditPrice').value) || 0;
+      const day   = Math.min(31, Math.max(1, parseInt(row.querySelector('.aboEditDay').value) || 1));
+      const emoji = row.querySelector('.aboEditEmoji').value.trim() || '💳';
+      if (!name || price <= 0) return;
+      const l = loadAbonnementer();
+      const item = l.find(s => s.id === id);
+      if (item) { item.name = name; item.price = price; item.day = day; item.emoji = emoji; saveAbonnementer(l); }
+      editingId = null;
+      renderList();
+      showToast('Lagret');
+    }));
+
+    listEl.querySelectorAll('.aboDeleteBtn').forEach(btn => btn.addEventListener('click', () => {
+      const id = Number(btn.dataset.id);
+      const item = list.find(s => s.id === id);
+      showConfirmDialog(`Er du sikker på at du vil slette «${item?.name}»?`, () => {
+        const l = loadAbonnementer().filter(s => s.id !== id);
+        saveAbonnementer(l);
+        renderList();
+        showToast('Slettet');
+      });
+    }));
+  }
+
+  renderList();
+}
+
 // ── Feriepenger Calculator ───────────────────────────────────────
 function renderFeriepengerCalc(container) {
   const saved = JSON.parse(localStorage.getItem('okonomi_feriepenger') || '{}');
@@ -276,7 +625,7 @@ function renderFeriepengerCalc(container) {
   const iSt = 'padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit';
 
   container.innerHTML = `
-    <div style="font-weight:600;font-size:14px;margin-bottom:14px">🏖️ Feriepenger-kalkulator</div>
+    <div style="font-weight:600;font-size:14px;margin-bottom:14px">${icon('feriepenger',{size:14})} Feriepenger-kalkulator</div>
     <div style="margin-bottom:12px">
       <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Brutto årslønn (forrige år)</label>
       <input id="fpBrutto" type="number" placeholder="F.eks. 500000" value="${bruttoAar || ''}" style="${iSt}">
@@ -325,7 +674,7 @@ function renderFeriepengerCalc(container) {
 // ── Valuta / Trip Planner ────────────────────────────────────────
 function renderValutaPanel(container) {
   container.innerHTML = `
-    <div style="font-weight:600;font-size:14px;margin-bottom:14px">💱 Valutakurser (Norges Bank)</div>
+    <div style="font-weight:600;font-size:14px;margin-bottom:14px">${icon('valuta',{size:14})} Valutakurser (Norges Bank)</div>
     <div id="valutaContent" style="text-align:center;color:var(--text-muted);padding:20px">Henter kurser...</div>`;
 
   fetchExchangeRates().then(rates => {
@@ -379,7 +728,7 @@ function renderValutaPanel(container) {
         </div>
 
         <div style="border-top:1px solid var(--border-light);padding-top:16px">
-          <div style="font-weight:600;font-size:13px;margin-bottom:10px">✈️ Reisekalkulator</div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:10px">${icon('reise',{size:13})} Reisekalkulator</div>
           <div style="margin-bottom:10px">
             <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Valuta</label>
             <select id="tripCur" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit">
@@ -455,9 +804,9 @@ function renderValutaPanel(container) {
   });
 }
 
-// ── Main render ──────────────────────────────────────────────────
-function renderVerktoy() {
-  setActiveNav('verktoy');
+// ── Skatt tab (Skattekalkulator + Årslønn & skatt hittil) ─────────
+function renderSkatt() {
+  setActiveNav('skatt');
   const c = document.getElementById('mainContent');
   c.innerHTML = '';
 
@@ -466,10 +815,168 @@ function renderVerktoy() {
   const skCard = document.createElement('div'); skCard.className = 'card'; c.appendChild(skCard);
   renderSkattekalkulatorCalc(skCard);
 
+  // Årslønn & skatt hittil
+  const lsHead = document.createElement('div'); lsHead.className = 'section-head'; lsHead.textContent = 'Årslønn & skatt hittil'; c.appendChild(lsHead);
+  const lsCard = document.createElement('div'); lsCard.className = 'card'; c.appendChild(lsCard);
+  renderLonnSkattTracker(lsCard);
+}
+
+// ── Studielån-tracker ────────────────────────────────────────────
+// Answers three questions: how much have I borrowed, where did it go, and how
+// are the borrowed kroner I put in funds doing against what I owe on them.
+function renderStudielanCard(container) {
+  const st       = loadStudielanState();
+  const payouts  = studielanPayouts();
+  const paid     = payouts.reduce((s,t) => s+t.inn, 0);
+  const total    = st.prior + paid;
+
+  const funded    = studielanFundedBuckets();
+  const fundedSum = funded.reduce((s,x) => s+x.funded, 0);   // lånt inn — det du skylder
+  const fundedVal = funded.reduce((s,x) => s+x.bal, 0);      // hva kontoene står i nå
+  const ownSum    = funded.reduce((s,x) => s+(x.own||0), 0);  // egne penger skutt inn i de samme bøttene
+  const basis     = fundedSum + ownSum;                       // alt du har skutt inn
+  const avk       = fundedVal - basis;                        // det kontoene har tjent
+  const avkPct    = basis > 0 ? (avk / basis * 100) : 0;
+  const avkColor  = avk > 0 ? '#22c55e' : avk < 0 ? '#ef4444' : 'var(--text-muted)';
+
+  // Per year, newest first
+  const byYear = {};
+  payouts.forEach(t => { const y = t.dato.split('.')[2]; byYear[y] = (byYear[y]||0) + t.inn; });
+  const years = Object.entries(byYear).sort((a,b) => b[0].localeCompare(a[0]));
+  const yearMax = Math.max(...years.map(y => y[1]), 1);
+
+  const iSt = 'padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:600;background:var(--input-bg);color:var(--text);width:100%;font-family:inherit;box-sizing:border-box';
+  const tile = (label, value, sub, color) => `
+    <div style="background:var(--chip-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${label}</div>
+      <div style="font-size:20px;font-weight:700;color:${color||'var(--text)'};white-space:nowrap">${value}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${sub}</div>
+    </div>`;
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="font-weight:600;font-size:14px">${icon('studielan',{size:14})} Studielån</div>
+      <div style="font-size:11px;color:var(--text-muted)">Rentefritt så lenge du er student</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+      ${tile('Totalt lånt', fmt(total),
+             payouts.length ? `${payouts.length} utbetaling${payouts.length!==1?'er':''}${st.prior>0?` · inkl. ${fmt(st.prior)} fra før`:''}` : 'ingen utbetalinger enda')}
+      ${tile('Brukt — ute av konto', fmt(Math.max(0, total - fundedSum)),
+             fundedSum > 0 ? 'f.eks. bil — gjeld, men ikke penger du har' : 'alt lånet er brukt')}
+      ${fundedSum > 0
+        ? tile('Står i fond/sparing',
+               `${fmt(fundedVal)} <span style="font-size:13px;color:${avkColor}">${avk>=0?'+':'−'}${fmt(avk)}</span>`,
+               `skutt inn ${fmt(basis)}${ownSum>0?` (${fmt(fundedSum)} lånt)`:' — alt lånt'} · ${avk>=0?'+':'−'}${Math.abs(avkPct).toFixed(1).replace('.',',')} % avkastning`)
+        : tile('Står i fond/sparing', '—', 'merk en bøtte i Sparing → Rediger')}
+    </div>
+
+    ${funded.length ? `<div style="margin-bottom:14px">
+      ${funded.map(x => {
+        const bs = x.funded + (x.own||0);
+        const a  = x.bal - bs;
+        const ac = a > 0 ? '#22c55e' : a < 0 ? '#ef4444' : 'var(--text-muted)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light)">
+          <div style="font-size:16px;line-height:1;flex-shrink:0">${resolveBucketIcon(x.b) ? icon(resolveBucketIcon(x.b),{size:16}) : x.b.emoji}</div>
+          <div style="flex:1;min-width:0;font-size:13px;font-weight:500">${x.b.label}</div>
+          <div style="font-size:12px;color:var(--text-muted);white-space:nowrap">${fmt(x.bal)} · skutt inn ${fmt(bs)}</div>
+          <div style="font-size:13px;font-weight:700;color:${ac};white-space:nowrap;min-width:92px;text-align:right">${a>=0?'+':'−'}${fmt(a)}</div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px">
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Tell lån fra og med</label>
+        <div id="slFromField" style="${iSt};cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:500;font-size:14px">
+          <span id="slFromText" style="${st.fromDate ? '' : 'color:var(--text-muted)'}">${st.fromDate ? formatDateNo(st.fromDate) : 'Alle utbetalinger'}</span>
+          <span style="color:var(--text-muted);display:flex;flex-shrink:0">${icon('calendar',{size:14})}</span>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Lån tatt opp før den datoen</label>
+        <input id="slPrior" type="number" min="0" step="1000" placeholder="0" value="${st.prior || ''}" style="${iSt}">
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:${years.length?'16px':'0'}">
+      Sett startdatoen til da du begynte på bachelor — stipend fra videregående var ikke lån og skal ikke telle med.${st.fromDate ? ` Utbetalinger før ${formatDateNo(st.fromDate)} er utelatt.` : ''}
+    </div>
+
+    ${years.length ? `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Utbetalt per år</div>
+    ${years.map(([y,v]) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="font-size:12px;font-weight:600;width:38px;flex-shrink:0">${y}</div>
+        <div style="flex:1;height:6px;background:var(--border);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${(v/yearMax*100).toFixed(1)}%;background:var(--text-muted);border-radius:99px"></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);white-space:nowrap;width:80px;text-align:right">${fmt(v)}</div>
+      </div>`).join('')}` : ''}
+
+    ${payouts.length ? `<div style="margin-top:14px">
+      <button class="sort-btn" id="slToggleList">Vis utbetalinger (${payouts.length})</button>
+      <div id="slList" style="display:none;margin-top:10px"></div>
+    </div>` : `<div style="font-size:12px;color:var(--text-muted);margin-top:12px">
+      Ingen utbetalinger fanget opp enda. De dukker opp her automatisk når en utbetaling fra Lånekassen importeres.
+    </div>`}`;
+
+  // Re-render only on a real change — otherwise tabbing out of the field would
+  // rebuild the card under the cursor and drop focus.
+  const save = (patch = {}) => {
+    const next = {
+      prior: Math.max(0, parseFloat(container.querySelector('#slPrior')?.value) || 0),
+      fromDate: st.fromDate,
+      ...patch,
+    };
+    if (next.prior === st.prior && next.fromDate === st.fromDate) return;
+    saveStudielanState(next);
+    renderStudielanCard(container);
+  };
+  container.querySelector('#slPrior')?.addEventListener('blur', () => save());
+  container.querySelector('#slPrior')?.addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+
+  const fromField = container.querySelector('#slFromField');
+  fromField?.addEventListener('click', () => {
+    openCalendarPicker(fromField, st.fromDate, dateStr => save({ fromDate: dateStr || '' }));
+  });
+
+  const toggle = container.querySelector('#slToggleList');
+  toggle?.addEventListener('click', () => {
+    const list = container.querySelector('#slList');
+    const open = list.style.display !== 'none';
+    list.style.display = open ? 'none' : 'block';
+    toggle.textContent = open ? `Vis utbetalinger (${payouts.length})` : 'Skjul utbetalinger';
+    if (!open && !list.dataset.filled) {
+      list.dataset.filled = '1';
+      list.innerHTML = [...payouts].reverse().map(t => `
+        <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-light)">
+          <div style="flex:1;min-width:0;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.beskr}</div>
+          <div style="font-size:11px;color:var(--text-muted);white-space:nowrap">${t.dato}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-secondary);white-space:nowrap;width:90px;text-align:right">${fmt(t.inn)}</div>
+        </div>`).join('');
+    }
+  });
+}
+
+// ── Main render ──────────────────────────────────────────────────
+function renderVerktoy() {
+  setActiveNav('verktoy');
+  const c = document.getElementById('mainContent');
+  c.innerHTML = '';
+
+  // Abonnementer
+  const aboHead = document.createElement('div'); aboHead.className = 'section-head'; aboHead.textContent = 'Abonnementer'; c.appendChild(aboHead);
+  const aboCard = document.createElement('div'); aboCard.className = 'card'; c.appendChild(aboCard);
+  renderAbonnementerCard(aboCard);
+
   // Sparemål
   const smHead = document.createElement('div'); smHead.className = 'section-head'; smHead.textContent = 'Sparemål'; c.appendChild(smHead);
   const smCard = document.createElement('div'); smCard.className = 'card'; c.appendChild(smCard);
   renderSparemaalCalc(smCard);
+
+  // Studielån
+  const slHead = document.createElement('div'); slHead.className = 'section-head'; slHead.textContent = 'Studielån'; c.appendChild(slHead);
+  const slCard = document.createElement('div'); slCard.className = 'card'; c.appendChild(slCard);
+  renderStudielanCard(slCard);
 
   // Two-column: Feriepenger + Valuta
   const grid = document.createElement('div');

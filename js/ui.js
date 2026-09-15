@@ -6,7 +6,7 @@ function renderSidebarChart() {
     const year = tx.dato.split('.')[2];
     if (!monthly[key]) monthly[key] = { key, year, month: +tx.dato.split('.')[1], income: 0, expenses: 0 };
     if (tx.cat === 'income') monthly[key].income += tx.inn;
-    else if (!['income','savings','internal','transfer_in'].includes(tx.cat) && tx.ut > 0) monthly[key].expenses += tx.ut;
+    else if (!['income','studielan','savings','internal','transfer_in'].includes(tx.cat) && tx.ut > 0) monthly[key].expenses += tx.ut;
   }
   const allMonths = Object.values(monthly).sort((a,b) => a.key.localeCompare(b.key));
   const years     = [...new Set(allMonths.map(m => m.year))].sort();
@@ -76,12 +76,14 @@ function updateTopbar() {
   const data       = getFiltered();
   const income     = data.filter(t => t.cat === 'income');
   const savings    = data.filter(t => t.cat === 'savings');
-  const expenses   = data.filter(t => !['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
+  const expenses   = data.filter(t => !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
   const withdrawals= data.filter(t => t.cat === 'withdrawal');
+  const studielan  = data.filter(t => t.cat === 'studielan');
   const ti  = income.reduce((s,t) => s+t.inn, 0);
   const ts  = savings.reduce((s,t) => s+t.ut, 0);
   const tw  = withdrawals.reduce((s,t) => s+t.inn, 0);
   const te  = expenses.reduce((s,t) => s+t.ut, 0);
+  const tsl = studielan.reduce((s,t) => s+t.inn, 0);
   const net = ti - te;
   const tsNetto = ts - tw;
   const assets = getTotalManualAssets();
@@ -93,7 +95,8 @@ function updateTopbar() {
   hdrSavEl.style.color  = tsNetto >= 0 ? '#7dd3fc' : '#ffb347';
   document.getElementById('hdrNet').textContent      = (net >= 0 ? '+' : '-') + fmt(Math.abs(net));
   document.getElementById('hdrNet').style.color      = net >= 0 ? '#b8f07a' : '#ffb347';
-  document.getElementById('hdrIncomeAvg').textContent   = `${income.length} kilde${income.length !== 1 ? 'r' : ''}`;
+  document.getElementById('hdrIncomeAvg').textContent   = `${income.length} kilde${income.length !== 1 ? 'r' : ''}`
+    + (tsl > 0 ? ` · +${fmt(tsl)} studielån` : '');
   document.getElementById('hdrExpensesAvg').textContent = `${expenses.length} transaksjoner`;
   document.getElementById('hdrSavingsAvg').textContent  = withdrawals.length > 0
     ? `${savings.length} inn · ${withdrawals.length} ut`
@@ -111,7 +114,7 @@ function updateTopbar() {
 // ── Nav ──────────────────────────────────────────────────────────
 const NAV_TAB_GROUP = {
   oversikt: 'oversikt', innsikt: 'oversikt',
-  lonnskalk: 'okonomi', budsjett: 'okonomi', sparing: 'okonomi',
+  lonnskalk: 'okonomi', skatt: 'okonomi', budsjett: 'okonomi', sparing: 'okonomi',
   transaksjoner: 'transaksjoner', folk: 'transaksjoner', maaneder: 'transaksjoner',
   uker: 'transaksjoner',
 };
@@ -127,13 +130,26 @@ function applyNavGroups() {
   });
 }
 
+let lastActiveTab = null;
 function setActiveNav(tab) {
   currentTab = tab;
   try { localStorage.setItem('okonomi_current_tab', tab); } catch {}
   document.querySelectorAll('.nav-item, .nav-group-head').forEach(n =>
     n.classList.toggle('active', n.dataset.tab === tab)
   );
-  const group = NAV_TAB_GROUP[tab];
-  if (group) navOpenGroups.add(group);
+  // Only touch group state on an actual navigation (tab change) — not on every
+  // re-render of the same tab, so a manual close (e.g. click outside) sticks.
+  if (tab !== lastActiveTab) {
+    const group = NAV_TAB_GROUP[tab];
+    const lastGroup = lastActiveTab ? NAV_TAB_GROUP[lastActiveTab] : null;
+    if (group && group !== lastGroup) {
+      // Switched to a different group — accordion: close everything else, open only this one
+      navOpenGroups.clear();
+      navOpenGroups.add(group);
+    } else if (group) {
+      navOpenGroups.add(group);
+    }
+  }
+  lastActiveTab = tab;
   applyNavGroups();
 }

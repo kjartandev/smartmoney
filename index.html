@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smartmoney</title>
 <link rel="icon" type="image/svg+xml" href="AppIcon.svg">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<!-- Lets Chrome offer "Install SmartMoney" — installing creates a real macOS
+     app with this manifest's icon in the Dock, not a Chrome-branded window. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d6a2d">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/variables.css">
 <link rel="stylesheet" href="css/base.css">
@@ -17,12 +23,10 @@
 
 <!-- Loading screen -->
 <div id="loadingScreen">
-  <div class="loading-ring-wrap">
-    <svg class="loading-ring" viewBox="0 0 80 80">
-      <circle class="loading-ring-track" cx="40" cy="40" r="35"></circle>
-      <circle class="loading-ring-arc" cx="40" cy="40" r="35"></circle>
-    </svg>
-    <img src="AppIcon.svg" alt="" class="loading-logo">
+  <canvas id="loadingRainCanvas" class="loading-rain"></canvas>
+  <div class="loading-arrow-wrap">
+    <img src="AppIcon.svg" alt="" class="loading-bg-icon">
+    <canvas id="loadingCanvas" class="loading-dots"></canvas>
   </div>
   <div class="loading-name">
     <div class="loading-name-row">
@@ -32,13 +36,12 @@
       <span style="--i:5">M</span><span style="--i:6">o</span><span style="--i:7">n</span><span style="--i:8">e</span><span style="--i:9">y</span>
     </div>
   </div>
-  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
 </div>
 
 <!-- Upload (first time) -->
 <div id="uploadScreen">
   <div class="upload-box" id="dropZone">
-    <div class="icon-wrap">📂</div>
+    <div class="icon-wrap" id="uploadIconWrap">📂</div>
     <h2>Smartmoney</h2>
     <p>Eksporter CSV fra Sparebanken Møre nettbank og last opp her. Måneder lagres lokalt i nettleseren.</p>
     <label class="btn-primary" for="fileInput" style="display:block;cursor:pointer">Velg CSV-fil</label>
@@ -82,17 +85,18 @@
       </div>
     </div>
     <div class="topbar-actions">
+      <button class="top-icon-btn" id="fullscreenBtn" title="Fullskjerm"><span class="ti-icon" data-icon="maximize">⛶</span></button>
       <button class="top-btn" id="addMonthBtn">+ Legg til måned</button>
       <div class="tools-wrap" id="toolsWrap">
-        <button class="top-btn" id="toolsBtn">⚙ Verktøy ▾</button>
+        <button class="top-btn" id="toolsBtn"><span class="ti-icon" data-icon="settings">⚙</span> Verktøy ▾</button>
         <div class="tools-menu" id="toolsMenu">
-          <button class="tools-item" id="importBackupBtn">↑ Importer backup</button>
+          <button class="tools-item" id="importBackupBtn"><span class="ti-icon" data-icon="import">↑</span> Importer backup</button>
           <div class="tools-divider"></div>
-          <button class="tools-item" id="exportBtn">⬇ Eksporter fil (HTML)</button>
-          <button class="tools-item" id="exportJsonBtn">⬇ Eksporter JSON</button>
-          <button class="tools-item" id="exportCsvBtn">⬇ Eksporter CSV</button>
+          <button class="tools-item" id="exportBtn"><span class="ti-icon" data-icon="download">⬇</span> Eksporter fil (HTML)</button>
+          <button class="tools-item" id="exportJsonBtn"><span class="ti-icon" data-icon="download">⬇</span> Eksporter JSON</button>
+          <button class="tools-item" id="exportCsvBtn"><span class="ti-icon" data-icon="download">⬇</span> Eksporter CSV</button>
           <div class="tools-divider"></div>
-          <button class="tools-item" id="darkModeToggle">🌙 Bytt tema</button>
+          <button class="tools-item" id="darkModeToggle"><span class="ti-icon" data-icon="dark">🌙</span> Bytt tema</button>
           <div class="tools-divider"></div>
           <div class="tools-item" id="iconPackPickerWrap" style="cursor:default"></div>
         </div>
@@ -119,12 +123,12 @@
       <!-- Group: Økonomi -->
       <div class="nav-group" id="navg-okonomi">
         <div class="nav-group-head" data-tab="lonnskalk" data-group="okonomi">
-          <span class="ni-emoji">💸</span><span class="nav-label">Økonomi</span><span class="navg-arrow">▸</span>
+          <span class="ni-emoji">💰</span><span class="nav-label">Lønn</span><span class="navg-arrow">▸</span>
         </div>
         <div class="nav-group-body" data-group="okonomi" id="navgb-okonomi" style="display:none">
-          <div class="nav-item nav-sub" data-tab="lonnskalk"><span class="ni-emoji">🧮</span><span class="nav-label">Lønn</span></div>
-          <div class="nav-item nav-sub" data-tab="budsjett"><span class="ni-emoji">🎯</span><span class="nav-label">Budsjett</span></div>
           <div class="nav-item nav-sub" data-tab="sparing"><span class="ni-emoji">🏦</span><span class="nav-label">Sparing</span></div>
+          <div class="nav-item nav-sub" data-tab="skatt"><span class="ni-emoji">📈</span><span class="nav-label">Skatt</span></div>
+          <div class="nav-item nav-sub" data-tab="budsjett"><span class="ni-emoji">🎯</span><span class="nav-label">Budsjett</span></div>
         </div>
       </div>
 
@@ -156,6 +160,8 @@
     <div class="content" id="mainContent"></div>
 
   </div>
+
+  <footer class="app-footer">Made by KKDJ</footer>
 </div>
 
 <div id="slidePanel">
@@ -171,10 +177,9 @@
 <input type="file" id="fileInputHidden" accept=".csv" style="display:none">
 <input type="file" id="fileInputBackup" accept=".html,.json" style="display:none">
 
-<footer class="app-footer">Made by KKDJ</footer>
-
 <!-- Core (must load first — storage, state, utilities) -->
 <script src="js/core.js"></script>
+<script src="js/emoji-data.js"></script>
 <script src="js/icons.js"></script>
 <!-- UI (topbar, sidebar, nav, dark mode, toast, panel) -->
 <script src="js/ui.js"></script>

@@ -3,7 +3,17 @@ const LONN_KEY     = 'okonomi_lonn_v1';
 const FORDELING_KEY = 'okonomi_fordeling_v1';
 function loadLonnState()  { try { return JSON.parse(localStorage.getItem(LONN_KEY)||'{}'); } catch { return {}; } }
 function saveLonnState(s) { localStorage.setItem(LONN_KEY, JSON.stringify(s)); }
-function loadFordeling()  { try { return JSON.parse(localStorage.getItem(FORDELING_KEY)||'[]'); } catch { return []; } }
+// Migrate away from the (removed) multi-scenario shape: pull posts out of the first scenario.
+function loadFordeling() {
+  let raw;
+  try { raw = JSON.parse(localStorage.getItem(FORDELING_KEY) || '[]'); } catch { raw = []; }
+  if (Array.isArray(raw) && raw.length && 'items' in raw[0]) {
+    const items = raw[0].items || [];
+    saveFordeling(items);
+    return items;
+  }
+  return Array.isArray(raw) ? raw : [];
+}
 function saveFordeling(f) { localStorage.setItem(FORDELING_KEY, JSON.stringify(f)); }
 
 function renderLonnskalkulator() {
@@ -34,6 +44,22 @@ function renderLonnskalkulator() {
   function nettoMnd()     { return Math.round(bruttoMnd - skattMndCalc()); }
   function kr(v)          { return Math.round(v).toLocaleString('nb-NO') + ' kr'; }
 
+  // Reorders the fordeling list by moving draggedId to sit right before/after
+  // targetId, mirroring applyCategoryMove's insert logic in budsjett.js.
+  function reorderFordeling(draggedId, targetId, insertAfter) {
+    const items = loadFordeling();
+    const dragged = items.find(i => i.id === draggedId);
+    if (!dragged) return;
+    const rest = items.filter(i => i.id !== draggedId);
+    let idx = rest.findIndex(i => i.id === targetId);
+    if (idx === -1) idx = rest.length;
+    else if (insertAfter) idx += 1;
+    rest.splice(idx, 0, dragged);
+    saveFordeling(rest);
+  }
+
+  let draggedPostId = null;
+
   function renderFordeling() {
     const netto    = nettoMnd();
     const items    = loadFordeling();
@@ -59,8 +85,8 @@ function renderLonnskalkulator() {
         </div>
         ${items.length === 0 ? `<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px 0">Ingen poster enda — legg til din første!</div>` : ''}
         ${items.map(item => `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light)">
-            <span style="font-size:13px;color:var(--text)">${item.name}</span>
+          <div class="fordeling-row" data-id="${item.id}" draggable="true" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);cursor:grab">
+            <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text)"><span class="budget-drag-handle" title="Dra for å endre rekkefølge" style="opacity:1">⠿</span>${item.name}</span>
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-weight:600;font-size:13px">${kr(item.amount)}</span>
               <span style="font-size:11px;color:var(--text-muted)">${netto>0?((item.amount/netto)*100).toFixed(0)+'%':''}</span>
@@ -107,11 +133,43 @@ function renderLonnskalkulator() {
       items.push({ id: Date.now().toString(), name, amount });
       saveFordeling(items);
       renderFordeling();
+      renderFordelingChart();
     });
     document.querySelectorAll('.del-post-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        saveFordeling(loadFordeling().filter(i => i.id !== btn.dataset.id));
+        showConfirmDialog('Er du sikker på at du vil fjerne denne posten?', () => {
+          saveFordeling(loadFordeling().filter(i => i.id !== btn.dataset.id));
+          renderFordeling();
+          renderFordelingChart();
+        });
+      });
+    });
+    document.querySelectorAll('.fordeling-row').forEach(row => {
+      row.addEventListener('dragstart', e => {
+        draggedPostId = row.dataset.id;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => { row.style.opacity = '0.4'; }, 0);
+      });
+      row.addEventListener('dragend', () => {
+        draggedPostId = null;
+        document.querySelectorAll('.fordeling-row').forEach(r => { r.style.opacity = ''; r.style.boxShadow = ''; });
+      });
+      row.addEventListener('dragover', e => {
+        if (!draggedPostId || draggedPostId === row.dataset.id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const after = (e.clientY - row.getBoundingClientRect().top) > row.getBoundingClientRect().height / 2;
+        row.style.boxShadow = after ? 'inset 0 -2px 0 0 var(--green-accent)' : 'inset 0 2px 0 0 var(--green-accent)';
+      });
+      row.addEventListener('dragleave', () => { row.style.boxShadow = ''; });
+      row.addEventListener('drop', e => {
+        if (!draggedPostId || draggedPostId === row.dataset.id) return;
+        e.preventDefault();
+        const after = (e.clientY - row.getBoundingClientRect().top) > row.getBoundingClientRect().height / 2;
+        reorderFordeling(draggedPostId, row.dataset.id, after);
+        draggedPostId = null;
         renderFordeling();
+        renderFordelingChart();
       });
     });
   }
@@ -173,6 +231,58 @@ function renderLonnskalkulator() {
   leftCol.appendChild(fordelingDiv);
   renderFordeling();
 
+  const FORDELING_COLORS = ['#22c55e','#3b82f6','#a855f7','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
+  const fordelingChartDiv = document.createElement('div');
+  leftCol.appendChild(fordelingChartDiv);
+  renderFordelingChart();
+
+  function renderFordelingChart() {
+    const items = loadFordeling();
+    if (items.length === 0) { fordelingChartDiv.innerHTML = ''; return; }
+    const total = items.reduce((s, i) => s + i.amount, 0);
+    fordelingChartDiv.innerHTML = `
+      <div class="card" style="display:flex;gap:16px;align-items:center;margin-top:8px">
+        <canvas id="fordelingDonut" width="100" height="100" style="flex-shrink:0"></canvas>
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px;min-width:0">
+          ${items.map((item,i)=>`
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${FORDELING_COLORS[i%FORDELING_COLORS.length]};flex-shrink:0"></div>
+            <div style="flex:1;color:var(--text-nav);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
+            <div style="font-weight:600;color:var(--text);white-space:nowrap">${total>0?Math.round(item.amount/total*100):0}%</div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    setTimeout(() => {
+      const canvas = document.getElementById('fordelingDonut');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const cx = 50, cy = 50, r = 42, inner = 26;
+      let angle = -Math.PI / 2;
+      ctx.clearRect(0,0,100,100);
+      items.forEach((item,i) => {
+        const slice = (item.amount/total) * Math.PI * 2;
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+slice); ctx.closePath();
+        ctx.fillStyle = FORDELING_COLORS[i%FORDELING_COLORS.length]; ctx.fill(); angle += slice;
+      });
+      const isDark = document.body.classList.contains('dark');
+      ctx.beginPath(); ctx.arc(cx,cy,inner,0,Math.PI*2);
+      ctx.fillStyle = isDark ? '#141414' : '#fff'; ctx.fill();
+
+      const labelColor = isDark ? '#7a7a7a' : '#9aab90';
+      const sumColor   = isDark ? '#f0f0f0' : '#2b2b2b';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = labelColor;
+      ctx.font = '7px DM Sans,sans-serif';
+      ctx.fillText('TOTALT', cx, cy - 6);
+      ctx.fillStyle = sumColor;
+      ctx.font = 'bold 11px DM Sans,sans-serif';
+      ctx.fillText(Math.round(total).toLocaleString('nb-NO'), cx, cy + 6);
+      ctx.fillStyle = labelColor;
+      ctx.font = '7px DM Sans,sans-serif';
+      ctx.fillText('kr', cx, cy + 15);
+    }, 50);
+  }
+
   function updateCalc() {
     const sm = skattMndCalc();
     const nm = nettoMnd();
@@ -231,7 +341,7 @@ function renderLonnskalkulator() {
     const hd = document.createElement('div');
     hd.className = 'section-head';
     hd.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
-    hd.innerHTML = `<span>Vaktkalender</span><button class="sort-btn" id="calSettBtn">⚙ Innstillinger</button>`;
+    hd.innerHTML = `<span>Vaktkalender</span><button class="sort-btn" id="calSettBtn">${icon('settings',{size:12})} Innstillinger</button>`;
     calWrap.appendChild(hd);
 
     // Settings panel
@@ -328,9 +438,10 @@ function renderLonnskalkulator() {
       });
       liste.querySelectorAll('.del-profil-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          if (!confirm('Slett denne jobbprofilen?')) return;
-          saveJobbprofiler(loadJobbprofiler().filter(p => p.id !== btn.dataset.id));
-          renderProfilListe();
+          showConfirmDialog('Slett denne jobbprofilen?', () => {
+            saveJobbprofiler(loadJobbprofiler().filter(p => p.id !== btn.dataset.id));
+            renderProfilListe();
+          });
         });
       });
       liste.querySelectorAll('.save-profil-btn').forEach(btn => {
@@ -442,18 +553,18 @@ function renderLonnskalkulator() {
     grid.style.cssText = 'display:grid;grid-template-columns:28px repeat(7,1fr);gap:3px;margin-bottom:12px';
     // Header row: week label + day names
     const wkHdr = document.createElement('div');
-    wkHdr.style.cssText = 'font-size:10px;font-weight:600;color:#000;padding:4px 0;text-align:center';
+    wkHdr.style.cssText = 'font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0;text-align:center';
     wkHdr.textContent = 'Uke'; grid.appendChild(wkHdr);
     DAG.forEach((dn, i) => {
       const h = document.createElement('div');
       const isWknd = i >= 5;
-      h.style.cssText = `text-align:center;font-size:10px;font-weight:600;padding:4px 0;border-radius:6px;color:${isWknd?'#e91e63':'#000'};background:${isWknd?'rgba(233,30,99,0.07)':'transparent'}`;
+      h.style.cssText = `text-align:center;font-size:10px;font-weight:600;padding:4px 0;border-radius:6px;color:${isWknd?'#e91e63':'var(--text-muted)'};background:${isWknd?'rgba(233,30,99,0.07)':'transparent'}`;
       h.textContent = dn; grid.appendChild(h);
     });
     // Empty cells before first day + week number for first row
     const firstWeekNum = getWeekNum(new Date(calYear, calMonth, 1));
     const wn1 = document.createElement('div');
-    wn1.style.cssText = 'font-size:9px;font-weight:700;color:#000;text-align:center;padding:3px 0;align-self:start;margin-top:2px';
+    wn1.style.cssText = 'font-size:9px;font-weight:700;color:var(--text-muted);text-align:center;padding:3px 0;align-self:start;margin-top:2px';
     wn1.textContent = firstWeekNum; grid.appendChild(wn1);
     for (let i=0; i<firstDow; i++) grid.appendChild(document.createElement('div'));
     let lastWeekShown = firstWeekNum;
@@ -463,7 +574,7 @@ function renderLonnskalkulator() {
       // Insert week number at start of each new row (Monday)
       if (dow === 0 && d > 1) {
         const wn = document.createElement('div');
-        wn.style.cssText = 'font-size:9px;font-weight:700;color:#000;text-align:center;padding:3px 0;align-self:start;margin-top:2px';
+        wn.style.cssText = 'font-size:9px;font-weight:700;color:var(--text-muted);text-align:center;padding:3px 0;align-self:start;margin-top:2px';
         const wNum = getWeekNum(new Date(calYear, calMonth, d));
         wn.textContent = wNum; grid.appendChild(wn);
         lastWeekShown = wNum;
@@ -600,7 +711,9 @@ function renderLonnskalkulator() {
         saveVakter(all); editDate = null; renderCal();
       });
       document.getElementById('delVaktBtn')?.addEventListener('click', () => {
-        const all=loadVakter(); delete all[editDate]; saveVakter(all); editDate=null; renderCal();
+        showConfirmDialog('Er du sikker på at du vil slette denne vakten?', () => {
+          const all=loadVakter(); delete all[editDate]; saveVakter(all); editDate=null; renderCal();
+        });
       });
       document.getElementById('cancelVaktBtn').addEventListener('click', () => { editDate=null; renderCal(); });
     }

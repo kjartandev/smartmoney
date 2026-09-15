@@ -4,15 +4,18 @@ function renderOversikt() {
   const data      = getFiltered();
   const income    = data.filter(t => t.cat === 'income');
   const reselling = data.filter(t => t.cat === 'reselling');
-  const expenses  = data.filter(t => !['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
+  const studielan = data.filter(t => t.cat === 'studielan');
+  const expenses  = data.filter(t => !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
   const ti = income.reduce((s,t) => s+t.inn, 0);
   const te = expenses.reduce((s,t) => s+t.ut, 0);
   const tNetto = ti - te;
+  // Studielån holdes utenfor både Inntekt og Netto — det er lån, ikke inntjening.
+  const tsl = studielan.reduce((s,t) => s+t.inn, 0);
 
   const allKeys2 = [...new Set(allClassified.map(t => getMonthKey(t.dato)))].sort();
   const curIdx   = activeMonthFilter ? allKeys2.indexOf(activeMonthFilter) : allKeys2.length - 1;
   const prevKey  = curIdx > 0 ? allKeys2[curIdx - 1] : null;
-  const prevExp  = prevKey ? allClassified.filter(t=>getMonthKey(t.dato)===prevKey&&!['income','savings','internal','transfer_in','reselling','folk'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0) : null;
+  const prevExp  = prevKey ? allClassified.filter(t=>getMonthKey(t.dato)===prevKey&&!['income','studielan','savings','internal','transfer_in','reselling','folk'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0) : null;
   const prevInc  = prevKey ? allClassified.filter(t=>getMonthKey(t.dato)===prevKey&&t.cat==='income').reduce((s,t)=>s+t.inn,0) : null;
   const trendExp = (prevExp && te) ? ((te - prevExp) / prevExp * 100) : null;
   const trendInc = (prevInc && ti) ? ((ti - prevInc) / prevInc * 100) : null;
@@ -31,7 +34,7 @@ function renderOversikt() {
 
   const trendMonths = allKeys2.slice(-6);
   const trendData   = trendMonths.map(mk => {
-    const exp = allClassified.filter(t=>getMonthKey(t.dato)===mk&&!['income','savings','internal','transfer_in','reselling','folk'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0);
+    const exp = allClassified.filter(t=>getMonthKey(t.dato)===mk&&!['income','studielan','savings','internal','transfer_in','reselling','folk'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0);
     const inc = allClassified.filter(t=>getMonthKey(t.dato)===mk&&t.cat==='income').reduce((s,t)=>s+t.inn,0);
     const p   = mk.split('-');
     return { label: monthsShort[+p[1]-1], exp, inc };
@@ -40,7 +43,7 @@ function renderOversikt() {
   // Income compact rows for right panel
   const incomeCompact = [...income].sort((a,b)=>pd(b.dato)-pd(a.dato)).map(tx =>
     `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light)">
-      <div class="tx-icon-sm" style="background:#e8f5e9;flex-shrink:0">💰</div>
+      <div class="tx-icon-sm" style="background:#e8f5e9;color:#2d6a2d;flex-shrink:0">${icon('income',{size:14})}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${truncate(tx.beskr,30)}</div>
         <div style="font-size:11px;color:var(--text-muted)">${tx.dato}</div>
@@ -51,12 +54,23 @@ function renderOversikt() {
 
   const resellingCompact = resellingTotal > 0 ? [...reselling].sort((a,b)=>pd(b.dato)-pd(a.dato)).map(tx =>
     `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light)">
-      <div class="tx-icon-sm" style="background:#e0f2f1;flex-shrink:0">🏷️</div>
+      <div class="tx-icon-sm" style="background:#e0f2f1;color:#00796b;flex-shrink:0">${icon('reselling',{size:14})}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${truncate(tx.beskr,30)}</div>
         <div style="font-size:11px;color:var(--text-muted)">${tx.dato}</div>
       </div>
       <div style="font-weight:600;color:#26a69a;white-space:nowrap;font-size:13px">+${fmt(tx.inn)}</div>
+    </div>`
+  ).join('') : '';
+
+  const studielanCompact = tsl > 0 ? [...studielan].sort((a,b)=>pd(b.dato)-pd(a.dato)).map(tx =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light)">
+      <div class="tx-icon-sm" style="background:var(--border-light);color:var(--text-muted);flex-shrink:0">${icon('studielan',{size:14})}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${truncate(tx.beskr,30)}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${tx.dato}</div>
+      </div>
+      <div style="font-weight:600;color:var(--text-muted);white-space:nowrap;font-size:13px">+${fmt(tx.inn)}</div>
     </div>`
   ).join('') : '';
 
@@ -71,6 +85,7 @@ function renderOversikt() {
     <div class="sc-label">Inntekt</div>
     <div class="sc-val sc-green">${fmt(ti)}</div>
     <div class="sc-sub" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${income.length} utbetaling${income.length!==1?'er':''} ${trendBadge(trendInc,true)}</div>
+    ${tsl>0?`<div class="sc-sub" style="margin-top:2px">+ ${fmt(tsl)} studielån</div>`:''}
   </div>
   <div class="sum-card">
     <div class="sc-label">Utgifter</div>
@@ -90,6 +105,7 @@ function renderOversikt() {
     <div class="card" style="padding-bottom:4px">
       ${income.length===0?'<div style="color:var(--text-muted);font-size:13px">Ingen inntekt</div>':incomeCompact}
       ${resellingTotal>0?`<div style="margin-top:4px;padding-top:4px">${resellingCompact}<div style="font-size:11px;color:#26a69a;font-weight:600;text-align:right;margin-top:8px">Salg totalt: +${fmt(resellingTotal)}</div></div>`:''}
+      ${tsl>0?`<div style="margin-top:4px;padding-top:4px">${studielanCompact}<div style="font-size:11px;color:var(--text-muted);text-align:right;margin-top:8px">Studielån: ${fmt(tsl)}</div></div>`:''}
     </div>
 
     <div class="section-head" style="margin-top:16px">Største utgifter</div>
@@ -117,9 +133,9 @@ function renderOversikt() {
       const slice  = sortedExp.slice((expPage-1)*TOP_EXP_PAGE, expPage*TOP_EXP_PAGE);
       const offset = (expPage-1)*TOP_EXP_PAGE;
       const rows   = slice.map((tx, i) => {
-        const cat  = CATS.find(c=>c.id===tx.cat)||{emoji:'💼'};
+        const cat  = CATS.find(c=>c.id===tx.cat)||{emoji:icon('diverse',{size:14})};
         const rank = offset+i;
-        const r    = rank===0?'🥇':rank===1?'🥈':rank===2?'🥉':`<span style="font-size:11px;font-weight:700;color:var(--text-muted)">#${rank+1}</span>`;
+        const r    = rank===0?icon('medal1',{size:15}):rank===1?icon('medal2',{size:15}):rank===2?icon('medal3',{size:15}):`<span style="font-size:11px;font-weight:700;color:var(--text-muted)">#${rank+1}</span>`;
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-light)">
           <div style="width:22px;text-align:center;flex-shrink:0;font-size:15px">${r}</div>
           <div style="flex:1;min-width:0">
@@ -159,8 +175,8 @@ function renderOversikt() {
     const x  = i => pad.left + (i/(trendData.length-1))*cw;
     const yE = v => pad.top + (1 - v/maxVal)*ch;
     const isDark = document.body.classList.contains('dark');
-    const gridColor  = isDark ? '#23262f' : '#f0f4ee';
-    const labelColor = isDark ? '#6b7488' : '#9aab90';
+    const gridColor  = isDark ? '#1c1c1c' : '#f0f4ee';
+    const labelColor = isDark ? '#7a7a7a' : '#9aab90';
     const fmtY = v => v >= 1000 ? Math.round(v/1000) + 'k' : Math.round(v).toString();
     ctx.clearRect(0, 0, W, H);
     ctx.strokeStyle = gridColor; ctx.lineWidth = 1;

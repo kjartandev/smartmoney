@@ -6,12 +6,13 @@ function renderTransaksjoner() {
 
   const searchWrap = document.createElement('div');
   searchWrap.className = 'search-bar';
-  searchWrap.innerHTML = '<span class="search-icon">🔍</span><input type="text" id="txSearch" placeholder="Søk i transaksjoner..." autocomplete="off"><button class="search-clear" id="searchClear">×</button>';
+  searchWrap.innerHTML = `<span class="search-icon">${icon('search',{size:14})}</span><input type="text" id="txSearch" placeholder="Søk i transaksjoner..." autocomplete="off"><button class="search-clear" id="searchClear">×</button>`;
   c.appendChild(searchWrap);
 
   const chipDefs = [
     {id:'alle',l:'Alle'},{id:'utgifter',l:'Utgifter'},{id:'inntekt',l:'Inntekt'},
-    {id:'folk',l:'Privat'},{id:'sparing',l:'Sparing'},{id:'reservert',l:'Reserverte'},
+    {id:'studielan',l:'Studielån'},{id:'folk',l:'Privat'},{id:'sparing',l:'Sparing'},
+    {id:'reservert',l:'Reserverte'},
   ];
   let active   = 'alle';
   let sortCol  = 'dato';
@@ -48,12 +49,14 @@ function renderTransaksjoner() {
     const data     = getFiltered();
     const income   = data.filter(t => t.cat === 'income');
     const savings  = data.filter(t => t.cat === 'savings');
-    const expenses = data.filter(t => !['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
+    const studielan= data.filter(t => t.cat === 'studielan');
+    const expenses = data.filter(t => !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
     const allFolk  = data.filter(t => t.cat === 'folk');
 
     let pool;
     if      (active === 'utgifter')  pool = expenses;
     else if (active === 'inntekt')   pool = income;
+    else if (active === 'studielan') pool = studielan;
     else if (active === 'folk')      pool = allFolk;
     else if (active === 'sparing')   pool = savings;
     else if (active === 'reservert') pool = data.filter(t => t.reserved);
@@ -100,7 +103,7 @@ function renderTransaksjoner() {
     const splits     = loadSplits();
     const editableCats = CATS.filter(c => !['reselling','kredittkort','bankgebyr'].includes(c.id));
     const specialCats  = [
-      {id:'income',label:'Inntekt',emoji:'💰'},{id:'savings',label:'Sparing',emoji:'🏦'},
+      {id:'income',label:'Inntekt',emoji:'💰'},{id:'studielan',label:'Studielån',emoji:'🎓'},{id:'savings',label:'Sparing',emoji:'🏦'},
       {id:'folk',label:'Privat',emoji:'👤'},{id:'internal',label:'Intern',emoji:'🔄'},
       {id:'withdrawal',label:'Uttak sparing',emoji:'↩️'}
     ];
@@ -109,22 +112,29 @@ function renderTransaksjoner() {
     tbody.innerHTML = pageSlice.map(tx => {
       const id = txId(tx);
       const cat = CATS.find(c=>c.id===tx.cat) || {
-        emoji: tx.cat==='income'?'💰': tx.cat==='savings'?'🏦': tx.cat==='reselling'?'🏷️':'👤',
-        color: tx.cat==='reselling'?'#26a69a':'#9aab90',
-        label: tx.cat==='income'?'Lønn': tx.cat==='savings'?'Sparing': tx.cat==='reselling'?'Salg':'Privat'
+        emoji: icon(tx.cat==='income'?'income': tx.cat==='studielan'?'studielan': tx.cat==='savings'?'savings': tx.cat==='reselling'?'reselling':'person',{size:16}),
+        color: tx.cat==='studielan'?'#8a8a8a': tx.cat==='reselling'?'#26a69a':'#9aab90',
+        label: tx.cat==='income'?'Lønn': tx.cat==='studielan'?'Studielån': tx.cat==='savings'?'Sparing': tx.cat==='reselling'?'Salg':'Privat'
       };
       const isOverridden = !!overrides[id];
       const catOpts = allPickable.map(c=>`<option value="${c.id}"${c.id===tx.cat?' selected':''}>${icon(c.id,{pack:'emoji'})} ${c.label}</option>`).join('');
       const note    = notes[id] || '';
       const isSplit = !!splits[id];
-      const amtClass = tx.inn > 0 ? 'tx-amt-inn' : 'tx-amt-out';
+      // Colored by what the transaction actually is, not just which way the
+      // money moved — a savings transfer (e.g. Trustly Norway) is an outflow
+      // just like an expense, but shouldn't look identical to one.
+      const isExpense = !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(tx.cat) && tx.ut > 0;
+      const amtClass = tx.cat === 'savings' ? 'tx-amt-savings'
+        : tx.cat === 'studielan' ? 'tx-amt-studielan'
+        : isExpense ? 'tx-amt-expense'
+        : tx.inn > 0 ? 'tx-amt-inn' : 'tx-amt-out';
       let amtHtml;
       if (isSplit && tx.ut > 0) {
         amtHtml = `<td class="${amtClass}"><span class="split-amt-orig">-${fmt(tx.ut)}</span><span class="split-amt-half">½ din del: -${fmt(tx.ut/2)}</span></td>`;
       } else {
         amtHtml = `<td class="${amtClass}">${tx.inn > 0 ? '+'+fmt(tx.inn) : '-'+fmt(tx.ut)}</td>`;
       }
-      const noteHtml = note ? `<span class="tx-note-text" data-noteid="${id.replace(/"/g,'&quot;')}">📝 ${note}</span>` : '';
+      const noteHtml = note ? `<span class="tx-note-text" data-noteid="${id.replace(/"/g,'&quot;')}">${icon('note',{size:12})} ${note}</span>` : '';
       return `<tr data-txid="${id.replace(/"/g,'&quot;')}">
         <td><div class="tx-icon-sm" style="background:${cat.color}22">${cat.emoji}</div></td>
         <td class="tx-name-cell">
@@ -139,7 +149,7 @@ function renderTransaksjoner() {
           </select>
         </td>
         <td style="white-space:nowrap">
-          <button class="note-btn" title="Legg til notat" data-noteid="${id.replace(/"/g,'&quot;')}">📝</button>
+          <button class="note-btn" title="Legg til notat" data-noteid="${id.replace(/"/g,'&quot;')}">${icon('note',{size:14})}</button>
           ${tx.ut > 0 ? `<button class="split-btn${isSplit?' active':''}" title="Marker som delt" data-splitid="${id.replace(/"/g,'&quot;')}">½</button>` : ''}
         </td>
         ${amtHtml}
@@ -205,16 +215,28 @@ function renderTransaksjoner() {
       });
     });
 
-    // Sum row
-    const sumOut = sorted.filter(t=>t.ut>0).reduce((s,t)=>s+t.ut,0);
-    const sumInn = sorted.filter(t=>t.inn>0).reduce((s,t)=>s+t.inn,0);
-    const netStr = sumInn > 0 && sumOut > 0
-      ? `<span style="color:#2d6a2d">+${fmt(sumInn)}</span> &nbsp;·&nbsp; <span style="color:#c0392b">-${fmt(sumOut)}</span>`
-      : sumInn > 0 ? `<span style="color:#2d6a2d">+${fmt(sumInn)}</span>`
-      : `<span style="color:#c0392b">-${fmt(sumOut)}</span>`;
+    // Sum row — three separately labeled totals (Inntekt/Utgift/Spart), each
+    // computed from real category semantics rather than raw ut>0/inn>0, so a
+    // stray refund amount on an expense row can't leak into the wrong bucket.
+    // Spart uses the same blue/orange convention as the topbar's savings
+    // figure (updateTopbar in ui.js). Whichever chip is active, only the
+    // totals that actually apply to that filtered list end up non-zero.
+    const sumInntekt = sorted.filter(t => t.cat === 'income').reduce((s,t) => s+t.inn, 0);
+    const sumUtgift  = sorted.filter(t => !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0).reduce((s,t) => s+t.ut, 0);
+    const sumSpart   = sorted.filter(t => t.cat === 'savings').reduce((s,t) => s+t.ut, 0)
+                      - sorted.filter(t => t.cat === 'withdrawal').reduce((s,t) => s+t.inn, 0);
+    const sumStudielan = sorted.filter(t => t.cat === 'studielan').reduce((s,t) => s+t.inn, 0);
+
+    const parts = [];
+    if (sumInntekt > 0) parts.push(`<span style="color:#2d6a2d">+${fmt(sumInntekt)}</span>`);
+    if (sumStudielan > 0) parts.push(`<span style="color:var(--text-muted)">+${fmt(sumStudielan)} lån</span>`);
+    if (sumUtgift > 0)  parts.push(`<span style="color:#c0392b">-${fmt(sumUtgift)}</span>`);
+    if (sumSpart !== 0) parts.push(`<span style="color:${sumSpart>=0?'#7dd3fc':'#ffb347'}">${sumSpart>=0?'+':'-'}${fmt(Math.abs(sumSpart))}</span>`);
+    const netStr = parts.length ? parts.join(' &nbsp;·&nbsp; ') : `<span style="color:var(--text-muted)">0 kr</span>`;
+    const activeLabel = chipDefs.find(ch => ch.id === active)?.l || 'Alle';
     tfoot.innerHTML = `<tr style="border-top:2px solid var(--border)">
       <td colspan="4" style="padding:12px 0;font-size:12px;color:var(--text-muted);font-weight:500">${sorted.length} transaksjoner totalt</td>
-      <td style="padding:12px 0;font-size:12px;color:var(--text-secondary);text-align:right;font-weight:500">Sum (alle)</td>
+      <td style="padding:12px 0;font-size:12px;color:var(--text-secondary);text-align:right;font-weight:500">Sum (${activeLabel})</td>
       <td style="padding:12px 0;text-align:right;font-weight:600;font-size:13px">${netStr}</td>
     </tr>`;
   }

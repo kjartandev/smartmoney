@@ -16,7 +16,7 @@ function renderInnsikt() {
   const merchantTotals = {};
   const merchantMonths = {};
   for (const tx of allClassified) {
-    if (['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(tx.cat)) continue;
+    if (['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(tx.cat)) continue;
     if (tx.ut <= 0) continue;
     merchantTotals[tx.beskr] = (merchantTotals[tx.beskr]||0) + tx.ut;
     if (!merchantMonths[tx.beskr]) merchantMonths[tx.beskr] = new Set();
@@ -40,7 +40,7 @@ function renderInnsikt() {
       const mCount  = merchantMonths[name]?.size || 1;
       const perMonth= total / nMonths;
       const barW    = (total / topMerchants[0][1] * 100).toFixed(1);
-      const medals  = ['🥇','🥈','🥉'];
+      const medals  = [icon('medal1',{size:16}), icon('medal2',{size:16}), icon('medal3',{size:16})];
       const rankEl  = rank < 3 ? medals[rank] : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">#${rank+1}</span>`;
       return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border-light)">
         <span style="font-size:16px;flex-shrink:0;width:22px;text-align:center">${rankEl}</span>
@@ -94,7 +94,7 @@ function renderInnsikt() {
   const allStoredClassified = stored.map(t => ({...t, cat: classify(t)}));
   for (const tx of allStoredClassified) {
     if (tx.ut <= 0) continue;
-    if (['income','savings','internal','transfer_in','folk','withdrawal'].includes(tx.cat)) continue;
+    if (['income','studielan','savings','internal','transfer_in','folk','withdrawal'].includes(tx.cat)) continue;
     const key = tx.beskr.toLowerCase().trim();
     if (!recurMap[key]) recurMap[key] = { originalName: tx.beskr, entries: [], cat: tx.cat };
     recurMap[key].entries.push({ mk: getMonthKey(tx.dato), amt: tx.ut, cat: tx.cat, dato: tx.dato });
@@ -120,7 +120,7 @@ function renderInnsikt() {
     if (avgAmt < 5) continue;
 
     const catId  = entries[entries.length-1].cat;
-    const catInfo= CATS.find(c=>c.id===catId) || {emoji:'💼', label:'Diverse', id:'diverse'};
+    const catInfo= CATS.find(c=>c.id===catId) || {emoji:icon('diverse',{size:14}), label:'Diverse', id:'diverse'};
     const isSubscription = catInfo.id === 'abo' || (avgAmt < 600 && coverageRatio >= 0.5);
     const yearlyEstimate = avgAmt * 12;
 

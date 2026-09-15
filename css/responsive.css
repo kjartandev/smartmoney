@@ -72,7 +72,7 @@
   .nav-item .ni-emoji { font-size: 20px; width: auto; }
   .nav-label { display: block; }
 
-  .content { padding: 16px; overflow-y: auto; flex: 1; }
+  .content { padding: 16px; overflow-y: auto; flex: 1; min-height: 0; }
   .two-col, .summary-grid { grid-template-columns: 1fr; }
   .card { overflow-x: auto; }
   .tx-table { min-width: 480px; }

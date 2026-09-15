@@ -40,26 +40,27 @@ function renderMaaneder() {
     body.style.cssText = 'display:none;margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px';
 
     // Compute year totals
-    let yearTotalInc = 0, yearTotalExp = 0, yearTotalTx = 0;
+    let yearTotalInc = 0, yearTotalExp = 0, yearTotalTx = 0, yearTotalSl = 0;
     const monthRows = yearMonths.map(mk => {
       const parts = mk.split('-');
       const label = monthsNo[+parts[1]-1] + ' ' + parts[0];
       const mTxs  = stored.filter(t => getMonthKey(t.dato) === mk);
       const classified = mTxs.map(t => ({...t, cat: classify(t)}));
       const inc = classified.filter(t=>t.cat==='income').reduce((s,t)=>s+t.inn,0);
-      const exp = classified.filter(t=>!['income','savings','internal','transfer_in','reselling','folk'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0);
+      const exp = classified.filter(t=>!['income','studielan','savings','internal','transfer_in','reselling','folk'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0);
       const netto = inc - exp;
-      yearTotalInc += inc; yearTotalExp += exp; yearTotalTx += mTxs.length;
+      const sl  = classified.filter(t=>t.cat==='studielan').reduce((s,t)=>s+t.inn,0);
+      yearTotalInc += inc; yearTotalExp += exp; yearTotalTx += mTxs.length; yearTotalSl += sl;
       const mc = loadMonthClose()[mk];
       const nettoC = netto >= 0 ? '#2d6a2d' : '#c0392b';
       return `<tr style="border-bottom:1px solid var(--border-light)">
-        <td style="padding:9px 0;font-weight:500">${label}${mc?'  ✅':''}</td>
+        <td style="padding:9px 0;font-weight:500">${label}${mc?'  '+icon('check',{size:12}):''}</td>
         <td style="padding:9px 0;text-align:right;color:var(--text-muted)">${mTxs.length}</td>
-        <td style="padding:9px 0;text-align:right;color:#2d6a2d;font-weight:500">+${fmt(inc)}</td>
+        <td style="padding:9px 0;text-align:right;color:#2d6a2d;font-weight:500">+${fmt(inc)}${sl>0?`<div style="font-size:10px;color:var(--text-muted)">+${fmt(sl)} lån</div>`:''}</td>
         <td style="padding:9px 0;text-align:right;color:#c0392b;font-weight:500">-${fmt(exp)}</td>
         <td style="padding:9px 0;text-align:right;color:${nettoC};font-weight:500">${netto>=0?'+':'−'}${fmt(Math.abs(netto))}</td>
         <td style="padding:9px 0;text-align:right;white-space:nowrap">
-          <button class="open-close-btn sort-btn" data-month="${mk}" data-inc="${inc}" data-exp="${exp}" style="font-size:10px;padding:3px 7px;margin-right:4px">📋</button>
+          <button class="open-close-btn sort-btn" data-month="${mk}" data-inc="${inc}" data-exp="${exp}" style="font-size:10px;padding:3px 7px;margin-right:4px">${icon('transaksjoner',{size:12})}</button>
           <button class="del-month" data-month="${mk}" style="background:none;border:none;color:#ddd;cursor:pointer;font-size:16px;line-height:1;padding:0">×</button>
         </td>
       </tr>`;
@@ -81,7 +82,7 @@ function renderMaaneder() {
     <tfoot><tr style="border-top:2px solid var(--border)">
       <td style="padding:10px 0;font-size:12px;font-weight:600;color:var(--text)">Totalt ${year}</td>
       <td style="padding:10px 0;text-align:right;font-size:12px;color:var(--text-muted)">${yearTotalTx}</td>
-      <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:#2d6a2d">+${fmt(yearTotalInc)}</td>
+      <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:#2d6a2d">+${fmt(yearTotalInc)}${yearTotalSl>0?`<div style="font-size:10px;color:var(--text-muted)">+${fmt(yearTotalSl)} lån</div>`:''}</td>
       <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:#c0392b">−${fmt(yearTotalExp)}</td>
       <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:${nettoColor}">${yearNetto>=0?'+':'−'}${fmt(Math.abs(yearNetto))}</td>
       <td></td>
@@ -96,9 +97,9 @@ function renderMaaneder() {
       const mTxs2  = stored.filter(t => getMonthKey(t.dato) === mk);
       const cl2    = mTxs2.map(t => ({...t, cat: classify(t)}));
       const inc2   = cl2.filter(t=>t.cat==='income').reduce((s,t)=>s+t.inn,0);
-      const exp2   = cl2.filter(t=>!['income','savings','internal','transfer_in','reselling','folk','savings','withdrawal'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0);
+      const exp2   = cl2.filter(t=>!['income','studielan','savings','internal','transfer_in','reselling','folk','savings','withdrawal'].includes(t.cat)&&t.ut>0).reduce((s,t)=>s+t.ut,0);
       const catTotals2 = {};
-      cl2.filter(t=>!['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat)&&t.ut>0).forEach(t=>{ catTotals2[t.cat]=(catTotals2[t.cat]||0)+t.ut; });
+      cl2.filter(t=>!['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat)&&t.ut>0).forEach(t=>{ catTotals2[t.cat]=(catTotals2[t.cat]||0)+t.ut; });
       const worstCat = Object.entries(catTotals2).sort((a,b)=>b[1]-a[1])[0];
       const worstLabel = worstCat ? (CATS.find(c=>c.id===worstCat[0])?.emoji+' '+(CATS.find(c=>c.id===worstCat[0])?.label||worstCat[0])+' ('+fmt(worstCat[1])+')') : '—';
       const mc2 = loadMonthClose()[mk] || {};
@@ -106,7 +107,7 @@ function renderMaaneder() {
       closePanel.id = `close-panel-${mk}`;
       closePanel.style.cssText = 'display:none;margin-top:12px;padding:14px;background:var(--chip-bg);border-radius:10px';
       closePanel.innerHTML = `
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">📋 Månedsslutt — ${label}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">${icon('transaksjoner',{size:14})} Månedsslutt — ${label}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
           <div style="background:var(--card-bg);border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Inntekt</div>
@@ -189,22 +190,22 @@ function renderMaaneder() {
       e.stopPropagation();
       const mk = btn.dataset.month, parts = mk.split('-');
       const label = monthsNo[+parts[1]-1] + ' ' + parts[0];
-      if (confirm(`Slette data for ${label}?`)) {
+      showConfirmDialog(`Slette data for ${label}?`, () => {
         saveStored(loadStored().filter(t => getMonthKey(t.dato) !== mk));
         showToast(`${label} slettet`);
         if (activeMonthFilter === mk) activeMonthFilter = null;
         boot(false);
-      }
+      });
     });
   });
   document.getElementById('clearAllBtn')?.addEventListener('click', () => {
-    if (confirm('Slette ALL lagret data? (transaksjoner, kategorier, budsjett, notater, vakter osv.) Dette kan ikke angres.')) {
+    showConfirmDialog('Slette ALL lagret data? (transaksjoner, kategorier, budsjett, notater, vakter osv.) Dette kan ikke angres.', () => {
       const allKeys = [STORAGE_KEY,OVERRIDES_KEY,BUDGET_KEY,INCOME_KEY,NOTES_KEY,SPLIT_KEY,VAKTKODER_KEY,VAKTER_KEY,VAKTSETT_KEY,LONN_KEY,FORDELING_KEY,CHECKPOINTS_KEY,MONTHCLOSE_KEY,SPAREMAAL_KEY,CUSTOM_BUCKETS_KEY];
       allKeys.forEach(k => { localStorage.removeItem(k); idbSet(k, null); });
       showToast('Alle data slettet');
       activeMonthFilter = null;
       boot(true);
-    }
+    });
   });
 }
 

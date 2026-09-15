@@ -1,5 +1,9 @@
 /* ── CSS Variables (Light mode) ── */
 :root {
+  --app-zoom: 1;
+  /* One viewport tall, corrected for the root zoom applyAppZoom() sets — see
+     the note on #app in base.css. Never use a bare 100vh for full-height boxes. */
+  --shell-h: calc(100vh / var(--app-zoom));
   --bg: #f0f4ee;
   --card-bg: #fff;
   --text: #1a1a1a;
@@ -26,30 +30,30 @@
   --green-accent: #2d6a2d;
 }
 
-/* ── Dark mode ── */
+/* ── Dark mode (noir — neutral black/gray, green only as accent) ── */
 body.dark {
-  --bg: #0f1117;
-  --card-bg: #1a1d24;
-  --text: #e8eaf0;
-  --text-muted: #6b7488;
-  --text-secondary: #9da5b4;
-  --text-nav: #b8c4b0;
-  --border: #2a2d35;
-  --border-light: #23262f;
-  --sidebar-bg: #13151c;
-  --topbar-bg: #1a2e1a;
-  --input-bg: #1a1d24;
-  --chip-bg: #1a1d24;
-  --chip-active-bg: #4ade80;
-  --chip-active-text: #0f1117;
-  --month-cell-bg: #1e2330;
-  --month-cell-active-bg: #1a2e1a;
-  --nav-hover-bg: #1e2330;
-  --nav-active-bg: #1a2e1a;
-  --search-bg: #1a1d24;
-  --sum-card-bg: #1a1d24;
-  --panel-bg: #13151c;
-  --budget-track-bg: #2a2d35;
-  --footer-color: #3a3d48;
-  --green-accent: #4ade80;
+  --bg: #0a0a0a;
+  --card-bg: #141414;
+  --text: #f2f2f2;
+  --text-muted: #7a7a7a;
+  --text-secondary: #a8a8a8;
+  --text-nav: #b0b0b0;
+  --border: #262626;
+  --border-light: #1c1c1c;
+  --sidebar-bg: #0a0a0a;
+  --topbar-bg: #0a0a0a;
+  --input-bg: #141414;
+  --chip-bg: #141414;
+  --chip-active-bg: #4caf50;
+  --chip-active-text: #000000;
+  --month-cell-bg: #141414;
+  --month-cell-active-bg: #1a1a1a;
+  --nav-hover-bg: #161616;
+  --nav-active-bg: #1a1a1a;
+  --search-bg: #141414;
+  --sum-card-bg: #141414;
+  --panel-bg: #0a0a0a;
+  --budget-track-bg: #262626;
+  --footer-color: #5a5a5a;
+  --green-accent: #4caf50;
 }

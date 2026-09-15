@@ -9,6 +9,7 @@ function rerenderCurrentTab() {
   else if (currentTab==='budsjett')     renderBudsjett();
   else if (currentTab==='maaneder')     renderMaaneder();
   else if (currentTab==='lonnskalk')    renderLonnskalkulator();
+  else if (currentTab==='skatt')        renderSkatt();
   else if (currentTab==='verktoy')     renderVerktoy();
 }
 
@@ -40,6 +41,7 @@ function restoreFullBackup(backup) {
   if (backup.sparemaal)      saveSparemaal(backup.sparemaal);
   if (backup.customBuckets)  saveCustomBuckets(backup.customBuckets);
   if (backup.nwHistory)      localStorage.setItem('okonomi_nw_history', JSON.stringify(backup.nwHistory));
+  if (backup.studielan)      saveStudielanState(backup.studielan);
   const count = backup.txs?.length || 0;
   showToast(`Full backup gjenopprettet · ${count} transaksjoner`);
   boot(false);
@@ -76,6 +78,7 @@ function processBackupFile(file) {
           fordeling: JSON.parse(d[FORDELING_KEY]  || '[]'),
           sparemaal: JSON.parse(d[SPAREMAAL_KEY]  || '{}'),
           customBuckets: JSON.parse(d[CUSTOM_BUCKETS_KEY] || '[]'),
+          studielan: JSON.parse(d[STUDIELAN_KEY] || 'null'),
         };
         restoreFullBackup(backup); return;
       } catch {}
@@ -97,10 +100,9 @@ function importTxs(newTxs) {
   if (!newTxs.length) { showToast('Ingen transaksjoner funnet'); return; }
   const newMonths = [...new Set(newTxs.map(t=>getMonthKey(t.dato)))];
   saveStored(mergeNewTxs(loadStored(), newTxs));
-  const parts = newMonths[newMonths.length-1].split('-');
-  showToast(`${monthsShort[+parts[1]-1]} ${parts[0]} lastet inn (${newTxs.length} transaksjoner)`);
   activeMonthFilter = newMonths[newMonths.length-1];
   boot(false);
+  showToast('Måned lagt til');
 }
 
 // ── Export: HTML (with embedded data) ────────────────────────────
@@ -122,6 +124,7 @@ function collectFullBackup() {
     sparemaal:    loadSparemaal(),
     customBuckets: loadCustomBuckets(),
     nwHistory: JSON.parse(localStorage.getItem('okonomi_nw_history') || '[]'),
+    studielan: loadStudielanState(),
     exportedAt: new Date().toISOString(),
     version: 2,
   };
@@ -145,6 +148,7 @@ function exportToFile() {
     [FORDELING_KEY]:  JSON.stringify(backup.fordeling),
     [SPAREMAAL_KEY]:  JSON.stringify(backup.sparemaal),
     [CUSTOM_BUCKETS_KEY]: JSON.stringify(backup.customBuckets),
+    [STUDIELAN_KEY]:  JSON.stringify(backup.studielan),
   };
   const injectScript = '<scr'+'ipt>try{const d='+JSON.stringify(allKeys)+';Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}catch(e){}</'+'script>';
   const html = document.documentElement.outerHTML;
@@ -193,6 +197,7 @@ function exportToCSV() {
 }
 
 // ── Slide panel ───────────────────────────────────────────────────
+let panelBackNav = null;
 function openPanel(type) {
   const data  = getFiltered();
   const panel = document.getElementById('slidePanel');
@@ -205,7 +210,7 @@ function openPanel(type) {
     allTxs = data.filter(t => t.cat === 'income');
     heading = 'Inntekt / Lønn'; totalColor = '#2d6a2d';
   } else if (type === 'utgifter') {
-    allTxs = data.filter(t => !['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
+    allTxs = data.filter(t => !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
     heading = 'Utgifter'; totalColor = '#c0392b';
   } else if (type === 'sparing') {
     allTxs = data.filter(t => t.cat === 'savings');
@@ -215,9 +220,10 @@ function openPanel(type) {
   title.textContent = heading;
   panel.classList.add('open');
   overlay.classList.add('open');
+  panelBackNav = bindBackNav(panel, closePanel, () => openPanel(type));
 
   let sortBy = 'dato', sortDir = 'desc', filterCat = '';
-  const cats = type === 'utgifter' ? [...new Set(allTxs.map(t=>t.cat))].map(id => CATS.find(c=>c.id===id)||{id,label:id,emoji:'💼'}) : [];
+  const cats = type === 'utgifter' ? [...new Set(allTxs.map(t=>t.cat))].map(id => CATS.find(c=>c.id===id)||{id,label:id,emoji:icon('diverse',{size:14})}) : [];
 
   function renderPanel() {
     let txs = [...allTxs];
@@ -253,7 +259,7 @@ function openPanel(type) {
       </div>` : ''}
       <div>${txs.length===0?'<div style="text-align:center;color:var(--text-muted);padding:24px 0">Ingen transaksjoner</div>':
         txs.map(tx => {
-          const cat = CATS.find(c=>c.id===tx.cat)||{emoji:tx.cat==='income'?'💰':tx.cat==='savings'?'🏦':'🔄',color:'#eee',label:tx.cat};
+          const cat = CATS.find(c=>c.id===tx.cat)||{emoji:icon(tx.cat==='income'?'income':tx.cat==='studielan'?'studielan':tx.cat==='savings'?'savings':'internal',{size:14}),color:'#eee',label:tx.cat};
           const amtColor = tx.inn>0?'#2d6a2d':'var(--text)';
           return `<div class="panel-tx">
             <div style="width:34px;height:34px;border-radius:50%;background:${cat.color}22;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${cat.emoji}</div>
@@ -279,4 +285,5 @@ function openPanel(type) {
 function closePanel() {
   document.getElementById('slidePanel').classList.remove('open');
   document.getElementById('panelOverlay').classList.remove('open');
+  if (panelBackNav) { const c = panelBackNav; panelBackNav = null; c(); }
 }

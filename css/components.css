@@ -20,6 +20,10 @@
 .tx-name-cell .tm { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
 .tx-amt-out { color: var(--text); font-weight: 600; text-align: right; }
 .tx-amt-inn { color: #2d6a2d; font-weight: 600; text-align: right; }
+.tx-amt-expense { color: #c0392b; font-weight: 600; text-align: right; }
+.tx-amt-savings { color: #7dd3fc; font-weight: 600; text-align: right; }
+.tx-amt-studielan { color: #767676; font-weight: 600; text-align: right; }
+body.dark .tx-amt-studielan { color: #9e9e9e; }
 .badge-res { font-size: 10px; background: #fff3cd; color: #856404; padding: 1px 6px; border-radius: 4px; margin-left: 4px; }
 
 /* ── Notes ── */
@@ -47,6 +51,11 @@
 .filter-chip-sm { background:none;border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-family:inherit;font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;white-space:nowrap; }
 .filter-chip-sm:hover { border-color:var(--green-accent);color:var(--green-accent); }
 .filter-chip-sm.active { background:var(--green-accent);border-color:var(--green-accent);color:#fff; }
+
+/* ── Sparing summary boxes (clickable — open the tx panel) ── */
+.sp-summary-box { transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease; border: 1px solid transparent; }
+.sp-summary-box:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.12); transform: translateY(-2px); border-color: var(--border); }
+.sp-summary-box:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 
 /* ── Saving rows ── */
 .saving-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border-light); font-size: 13px; }
@@ -92,6 +101,13 @@
 .budget-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.16,1,0.3,1); }
 .budget-input { width: 90px; border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-family: inherit; font-size: 13px; color: var(--text); background: var(--input-bg); text-align: right; outline: none; }
 .budget-input:focus { border-color: var(--green-accent); }
+.budget-cat-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
+.budget-drag-handle { color: var(--text-muted); font-size: 12px; letter-spacing: -1px; cursor: grab; opacity: 0; transition: opacity 0.12s; }
+.budget-row:hover .budget-drag-handle { opacity: 1; }
+.rm-budget-cat-btn { opacity: 0; transition: opacity 0.12s; }
+.budget-row:hover .rm-budget-cat-btn { opacity: 1; }
+.budget-amt-display { font-size: 13px; font-weight: 500; cursor: pointer; text-align: right; border-radius: 6px; padding: 2px 5px; transition: background 0.12s; }
+.budget-amt-display:hover { background: var(--chip-bg); }
 .budget-status { font-size: 11px; margin-top: 5px; font-weight: 500; }
 
 /* ── Category override select ── */

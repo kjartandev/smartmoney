@@ -1,17 +1,71 @@
 /* ── Top bar ── */
 .topbar {
   background: var(--topbar-bg); color: #fff;
-  display: grid; grid-template-columns: 260px 1fr auto;
+  display: grid; grid-template-columns: 210px 1fr auto;
   align-items: center; gap: 0; padding: 0; flex-shrink: 0;
 }
 .topbar-brand {
-  padding: 18px 28px;
+  padding: 8px 16px;
   border-right: 1px solid rgba(255,255,255,0.12);
-  display: flex; align-items: center; gap: 12px;
+  /* Tightened to match the loading screen's logo-to-text spacing (was 14px). */
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.topbar-logo { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; }
-.topbar-brand h1 { font-size: 22px; font-weight: 700; line-height: 1.1; display: flex; flex-direction: column; }
-.topbar-brand h1 .brand-money { color: #66bb6a; }
+.topbar-logo { width: 52px; height: 52px; border-radius: 13px; flex-shrink: 0; }
+.topbar-brand h1 { font-size: 28px; font-weight: 700; line-height: 1.05; display: flex; flex-direction: column; }
+.topbar-brand h1 .brand-money {
+  color: #4caf50;   /* fallback for browsers without background-clip:text — AppIcon.svg's own arrow green */
+}
+/* Same idea as the loading screen's "Money" (vertical gradient so it doesn't
+   seam — see base.css's #loadingScreen .loading-name-row:last-child span) but
+   its own tuning: more sparkle flecks, and a continuous slow glide — the
+   shine travels left-to-right across the whole word the entire time, then
+   eases back right-to-left via animation-direction:alternate. That reverse
+   used to run on ease-in-out, which decelerates to a stop at both ends before
+   reversing — exactly the "stops sometimes" pause; linear keeps it at one
+   constant speed the whole way so it never visibly stalls. One version for
+   both themes — variables.css makes light mode's topbar the same near-black
+   as dark mode's, so this always has a dark backdrop to read against. */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .topbar-brand h1 .brand-money {
+    background:
+      linear-gradient(120deg, transparent 35%, rgba(255,255,255,0.65) 48%, transparent 62%),
+      radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.85) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.75) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.85) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%),
+      radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%),
+      /* Lifted from AppIcon.svg: #8bd66f/#4caf50 are its arrow gradient,
+         #1f4d1f its background. Kept to 3 stops on purpose — at 28px, the
+         6-stop version's alternating light/dark bands didn't have enough
+         vertical pixels to blend smoothly and showed up as a visible line
+         cutting across the letters instead of a gloss. */
+      linear-gradient(180deg, #a8e08f 0%, #5cbf5a 45%, #2d6a2d 100%);
+    background-size: 300% 100%, 5% 5%, 4% 4%, 3.5% 3.5%, 4.5% 4.5%, 3% 3%, 5.5% 5.5%, 4% 4%, 3.5% 3.5%, 4.5% 4.5%, 100% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: topbar-money-shine 12s linear infinite alternate;
+  }
+}
+@keyframes topbar-money-shine {
+  /* For a background-image wider than its element (300% here), INCREASING
+     background-position-x actually pulls the visible slice right-to-left —
+     "100%" means align the image's right edge to the element's right edge,
+     which puts the image's own right portion on screen. Counterintuitive,
+     but real. So the "0%" keyframe below uses the numerically larger
+     position (160%) and "100%" uses the smaller (-140%), to get an actual
+     left-to-right sweep on screen. */
+  0%   { background-position: 160% 0,  5% 10%,  25% 70%, 50% 30%, 70% 80%, 85% 15%, 95% 55%, 15% 45%, 60% 10%, 40% 90%, 0 0; }
+  100% { background-position: -140% 0, 95% 55%, 70% 15%, 50% 75%, 25% 25%, 10% 85%, 5% 40%,  80% 60%, 35% 90%, 55% 5%,  0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar-brand h1 .brand-money { animation: none; }
+}
 .topbar-brand .period { display: none; }
 .topbar-brand .period { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
 
@@ -20,18 +74,25 @@
 .stat-block:last-child { border-right: none; }
 .stat-block:hover { background: rgba(255,255,255,0.1); border-radius: 8px; }
 .stat-block .sb-label { font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 3px; letter-spacing: 0.3px; }
-.stat-block .sb-val { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
+.stat-block .sb-val { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; white-space: nowrap; }
 .stat-block .sb-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
 .income-val { color: #b8f07a; }
 .expense-val { color: #ffb347; }
 
-.topbar-actions { display: flex; align-items: center; gap: 10px; padding: 0 24px; flex-wrap: wrap; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; padding: 0 24px; flex-wrap: wrap; }
 .top-btn {
   background: rgba(255,255,255,0.15); border: none; color: #fff;
-  border-radius: 8px; padding: 8px 16px; font-family: inherit;
-  font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; min-height: 44px;
+  border-radius: 8px; padding: 6px 12px; font-family: inherit;
+  font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; min-height: 36px;
 }
 .top-btn:hover { background: rgba(255,255,255,0.25); }
+.top-icon-btn {
+  background: rgba(255,255,255,0.15); border: none; color: #fff;
+  border-radius: 8px; width: 36px; height: 36px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.15s;
+}
+.top-icon-btn:hover { background: rgba(255,255,255,0.25); }
 .tools-wrap { position: relative; }
 .tools-menu {
   display: none; position: absolute; top: calc(100% + 6px); right: 0;
@@ -49,7 +110,7 @@
 
 /* ── Main layout ── */
 .app-body {
-  display: grid; grid-template-columns: 260px 1fr;
+  display: grid; grid-template-columns: 210px 1fr;
   grid-template-rows: 1fr; min-height: 0; flex: 1;
 }
 
@@ -58,6 +119,10 @@
   background: var(--sidebar-bg); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; padding: 20px 0;
   overflow-y: auto; transition: background 0.2s;
+  /* Grid items default to min-height:auto, which lets them grow past their
+     track to fit content instead of clipping/scrolling — min-height:0 here
+     is what makes the overflow-y:auto above actually take effect. */
+  min-height: 0;
 }
 .nav-item {
   display: flex; align-items: center; gap: 12px;
@@ -103,7 +168,7 @@
 .month-cell.no-data { opacity: 0.3; cursor: default; pointer-events: none; }
 .mc-label { font-size: 10px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
 .month-cell.active .mc-label { color: var(--green-accent); }
-.mc-bars { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 36px; }
+.mc-bars { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 26px; }
 .mc-bar { width: 3px; flex: none; border-radius: 2px 2px 0 0; min-height: 2px; }
 .mc-bar.income { background: #c5e8a0; }
 .mc-bar.expense { background: #f9d4a0; }
@@ -123,7 +188,7 @@
 .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
 
 /* ── Slide panel ── */
-#slidePanel { position:fixed;top:0;right:-420px;width:420px;height:100vh;background:var(--panel-bg);box-shadow:-4px 0 24px rgba(0,0,0,0.12);z-index:500;transition:right 0.3s cubic-bezier(0.16,1,0.3,1);display:flex;flex-direction:column; }
+#slidePanel { position:fixed;top:0;right:-420px;width:420px;height:var(--shell-h);background:var(--panel-bg);box-shadow:-4px 0 24px rgba(0,0,0,0.12);z-index:500;transition:right 0.3s cubic-bezier(0.16,1,0.3,1);display:flex;flex-direction:column; }
 #slidePanel.open { right:0; }
 #panelOverlay { position:fixed;inset:0;background:rgba(0,0,0,0);z-index:499;pointer-events:none;transition:background 0.3s; }
 #panelOverlay.open { background:rgba(0,0,0,0.25);pointer-events:all; }

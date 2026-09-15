@@ -2,7 +2,7 @@
 function renderUker() {
   setActiveNav('uker');
   const data     = getFiltered();
-  const expenses = data.filter(t => !['income','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
+  const expenses = data.filter(t => !['income','studielan','savings','internal','transfer_in','reselling','folk','withdrawal'].includes(t.cat) && t.ut > 0);
 
   function getMon(dato) {
     const d = pd(dato); const day = d.getDay() === 0 ? 6 : d.getDay() - 1;
@@ -60,7 +60,7 @@ function renderUker() {
       const topCats = {};
       for (const tx of w.txs) topCats[tx.cat] = (topCats[tx.cat]||0) + tx.ut;
       const catBadges = Object.entries(topCats).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([catId]) => {
-        const cat = CATS.find(c=>c.id===catId)||{emoji:'💼'};
+        const cat = CATS.find(c=>c.id===catId)||{emoji:icon('diverse',{size:14})};
         return `<span style="font-size:14px">${cat.emoji}</span>`;
       }).join('');
 
@@ -101,7 +101,7 @@ function renderUker() {
           <table class="tx-table">
             <thead><tr><th></th><th>Beskrivelse</th><th>Dato</th><th>Kategori</th><th style="text-align:right">Beløp</th></tr></thead>
             <tbody>${rows.map(tx => {
-              const cat = CATS.find(c=>c.id===tx.cat)||{emoji:'💼',color:'#78909c',label:'Diverse'};
+              const cat = CATS.find(c=>c.id===tx.cat)||{emoji:icon('diverse',{size:16}),color:'#78909c',label:'Diverse'};
               const pctOfWeek = ((tx.ut/w.total)*100).toFixed(0);
               return `<tr><td><div class="tx-icon-sm" style="background:${cat.color}22">${cat.emoji}</div></td><td class="tx-name-cell"><span class="tn">${tx.beskr}</span><span class="tm">${pctOfWeek}% av uken</span></td><td style="color:var(--text-muted);font-size:12px">${tx.dato}</td><td style="font-size:12px;color:var(--text-secondary)">${cat.label}</td><td class="tx-amt-out" style="text-align:right">-${fmt(tx.ut)}</td></tr>`;
             }).join('')}</tbody>
