@@ -319,6 +319,13 @@ function renderLonnskalkulator() {
   let calYear  = new Date().getFullYear();
   let calMonth = new Date().getMonth();
   let editDate = null;
+  // A day can hold several shifts (double shift, different jobs). editingShiftIdx
+  // is null while adding a new one, or the array index of the shift being
+  // edited. shiftFormOpen toggles between "list of this day's shifts" and
+  // "the start/end/job form" — kept separate so saving one shift can return to
+  // the list instead of closing the whole day, making it quick to add a second.
+  let editingShiftIdx = null;
+  let shiftFormOpen = false;
   const DAG = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
   const DAGFULL = ['søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'];
 
@@ -390,7 +397,7 @@ function renderLonnskalkulator() {
         head.innerHTML = `
           <div style="font-size:12px">
             <span style="font-weight:600">${p.name}</span>
-            <span style="color:var(--text-muted);margin-left:6px">${p.timepris} kr/t${p.kveldSats?` · kveld +${p.kveldSats}`:''}${p.nattSats?` · natt +${p.nattSats}`:''}</span>
+            <span style="color:var(--text-muted);margin-left:6px">${p.timepris} kr/t${p.kveldSats?` · kveld +${p.kveldSats}`:''}${p.nattSats?` · natt +${p.nattSats}`:''}${p.helgLordag===false?' · lør uten helgetillegg':''}</span>
           </div>
           <div style="display:flex;gap:4px">
             <button class="sort-btn edit-profil-btn" data-id="${p.id}" style="font-size:10px;padding:2px 7px">Rediger</button>
@@ -407,6 +414,9 @@ function renderLonnskalkulator() {
             <div><label style="color:var(--text-muted);display:block;margin-bottom:2px">Natt kr/t (fra–til)</label><div style="display:flex;gap:4px"><input id="pNattSats_${p.id}" type="number" value="${p.nattSats||0}" style="${iSt};width:40px"><input id="pNattFra_${p.id}" type="time" value="${p.nattFra||'21:00'}" style="${iSt};flex:1"><input id="pNattTil_${p.id}" type="time" value="${p.nattTil||'06:00'}" style="${iSt};flex:1"></div></div>
             <div><label style="color:var(--text-muted);display:block;margin-bottom:2px">Helg kr/t</label><input id="pHelgSats_${p.id}" type="number" value="${p.helgSats||0}" style="${iSt};width:100%;box-sizing:border-box"></div>
             <div><label style="color:var(--text-muted);display:block;margin-bottom:2px">Helligdag %</label><input id="pHelligSats_${p.id}" type="number" value="${p.helligSats||133}" style="${iSt};width:100%;box-sizing:border-box"></div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="pHelgLordag_${p.id}" ${p.helgLordag===false?'':'checked'}> Helgetillegg gjelder lørdag</label>
           </div>
           <div style="display:flex;gap:6px;margin-bottom:12px">
             <button class="sort-btn sort-active save-profil-btn" data-id="${p.id}" style="font-size:11px">Lagre</button>
@@ -460,6 +470,7 @@ function renderLonnskalkulator() {
             nattSats:   parseFloat(document.getElementById('pNattSats_'+id).value) || 0,
             helgSats:   parseFloat(document.getElementById('pHelgSats_'+id).value) || 0,
             helligSats: parseFloat(document.getElementById('pHelligSats_'+id).value) || 133,
+            helgLordag: document.getElementById('pHelgLordag_'+id).checked,
             updatedAt:  new Date().toISOString(),
           };
           saveJobbprofiler(all);
@@ -506,6 +517,9 @@ function renderLonnskalkulator() {
             <div><label style="color:var(--text-muted);display:block;margin-bottom:2px">Helg kr/t</label><input id="nJobHelgSats" type="number" placeholder="0" style="${iSt};width:100%;box-sizing:border-box"></div>
             <div><label style="color:var(--text-muted);display:block;margin-bottom:2px">Helligdag %</label><input id="nJobHelligSats" type="number" value="133" style="${iSt};width:100%;box-sizing:border-box"></div>
           </div>
+          <div style="margin-bottom:8px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="nJobHelgLordag" checked> Helgetillegg gjelder lørdag</label>
+          </div>
           <div style="display:flex;gap:6px">
             <button class="sort-btn sort-active" id="saveNyJobBtn" style="font-size:11px">Opprett</button>
             <button class="sort-btn" id="cancelNyJobBtn" style="font-size:11px">Avbryt</button>
@@ -527,6 +541,7 @@ function renderLonnskalkulator() {
           nattSats:   parseFloat(document.getElementById('nJobNattSats').value) || 0,
           helgSats:   parseFloat(document.getElementById('nJobHelgSats').value) || 0,
           helligSats: parseFloat(document.getElementById('nJobHelligSats').value) || 133,
+          helgLordag: document.getElementById('nJobHelgLordag').checked,
           createdAt:  new Date().toISOString(),
         });
         saveJobbprofiler(profs);
@@ -580,12 +595,16 @@ function renderLonnskalkulator() {
         lastWeekShown = wNum;
       }
       const isWeekend = dow>=5, isToday=dk2===todayK, isEditing=dk2===editDate;
-      const isHellig = isVaktHelligdag(dk2, vakter[dk2], helligdager);
-      const vakt = vakter[dk2];
+      const dayVakter = vakter[dk2] || [];   // loadVakter() always normalizes to an array
+      const isHellig = !!helligdager[dk2] || dayVakter.some(v => v.hellig);
       const cell = document.createElement('div');
       cell.dataset.date = dk2;
       const cellBg = isHellig ? 'rgba(255,193,7,0.12)' : isWeekend ? 'rgba(233,30,99,0.05)' : 'var(--chip-bg)';
-      cell.style.cssText = `border-radius:8px;padding:5px;min-height:64px;cursor:pointer;background:${cellBg};border:2px solid ${isEditing?'#7dd3fc':isToday?'#4caf50':isHellig?'rgba(255,193,7,0.4)':'transparent'};display:flex;flex-direction:column;align-items:center;`;
+      // A second shift needs more room for its own time row, or it and the
+      // total get crushed together — grid rows aren't a fixed height, so a
+      // taller cell just makes that one week's row a bit taller.
+      const cellMinH = dayVakter.length >= 2 ? 80 : 64;
+      cell.style.cssText = `border-radius:8px;padding:5px;min-height:${cellMinH}px;cursor:pointer;background:${cellBg};border:2px solid ${isEditing?'#7dd3fc':isToday?'#4caf50':isHellig?'rgba(255,193,7,0.4)':'transparent'};display:flex;flex-direction:column;align-items:center;`;
       const dn2 = document.createElement('div');
       dn2.style.cssText = `font-size:11px;font-weight:700;color:${isHellig?'#f5a623':isWeekend?'#e91e63':'var(--text-muted)'};width:100%;text-align:left`;
       dn2.textContent = d; cell.appendChild(dn2);
@@ -595,9 +614,10 @@ function renderLonnskalkulator() {
         hf.style.cssText = 'font-size:8px;color:#f5a623;width:100%;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600';
         hf.textContent = helligdager[dk2]; cell.appendChild(hf);
       }
-      if (vakt) {
+      if (dayVakter.length === 1) {
+        const vakt = dayVakter[0];
         const vaktJobSett = getJobbprofil(vakt.jobId);
-        const res = calcVaktPay(vakt, vaktJobSett, dk2, isHellig);
+        const res = calcVaktPay(vakt, vaktJobSett, dk2, isVaktHelligdag(dk2, vakt, helligdager));
         if (vakt.kode) {
           const kb = document.createElement('div');
           kb.style.cssText = 'font-size:12px;font-weight:800;color:var(--text);margin-top:2px;text-align:center';
@@ -614,112 +634,206 @@ function renderLonnskalkulator() {
           jl.style.cssText = 'font-size:8px;color:var(--text-muted);margin-top:1px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%';
           jl.textContent = vaktJobSett.name || ''; cell.appendChild(jl);
         }
+      } else if (dayVakter.length >= 2) {
+        let dayTotal = 0;
+        dayVakter.forEach(vakt => {
+          const res = calcVaktPay(vakt, getJobbprofil(vakt.jobId), dk2, isVaktHelligdag(dk2, vakt, helligdager));
+          dayTotal += res.pay;
+          const t = document.createElement('div');
+          t.style.cssText = 'font-size:8px;color:var(--text-muted);margin-top:1px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%';
+          t.textContent = `${vakt.kode ? vakt.kode+' ' : ''}${vakt.start}–${vakt.end}`;
+          cell.appendChild(t);
+        });
+        const p = document.createElement('div');
+        p.style.cssText = `font-size:10px;font-weight:700;margin-top:2px;color:${isHellig?'#f5a623':'#4caf50'}`;
+        p.textContent = Math.round(dayTotal).toLocaleString('nb-NO')+' kr'; cell.appendChild(p);
       } else {
         const pl = document.createElement('div');
         pl.style.cssText = 'font-size:16px;color:var(--text-muted);margin-top:6px;opacity:0.3';
         pl.textContent = '+'; cell.appendChild(pl);
       }
-      cell.addEventListener('click', () => { editDate = editDate===dk2?null:dk2; renderCal(); });
+      cell.addEventListener('click', () => {
+        if (editDate === dk2) { editDate = null; }
+        else {
+          editDate = dk2;
+          editingShiftIdx = null;
+          // An empty day jumps straight into the entry form, same as before;
+          // a day with shifts already opens on the list so the click can't
+          // accidentally overwrite an existing one.
+          shiftFormOpen = dayVakter.length === 0;
+        }
+        renderCal();
+      });
       grid.appendChild(cell);
     }
     calWrap.appendChild(grid);
 
-    // Edit form
+    // Day panel: either the list of this day's shifts, or the add/edit form
+    // for one of them. A day can hold several shifts (double shift, different
+    // jobs), so this no longer edits "the" shift for a day — it edits one
+    // entry in that day's array, chosen by editingShiftIdx.
     if (editDate) {
-      const vakt = vakter[editDate]||{};
-      const isEditHellig = !!helligdager[editDate] || !!(vakt.hellig);
+      const dayVakter = vakter[editDate] || [];
       const dObj = new Date(editDate), dParts = editDate.split('-');
-      const initJobId  = vakt.jobId || profiles[0]?.id || '';
-      const initJobSett = getJobbprofil(initJobId);
-      const form = document.createElement('div');
-      form.className='card'; form.style.cssText='margin-bottom:12px';
-      form.innerHTML = `
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:${isEditHellig?'4px':'10px'}">${DAGFULL[dObj.getDay()].charAt(0).toUpperCase()+DAGFULL[dObj.getDay()].slice(1)} ${parseInt(dParts[2])}. ${monthsNo[parseInt(dParts[1])-1]}</div>
-        ${helligdager[editDate]?`<div style="font-size:11px;color:#f5a623;font-weight:600;margin-bottom:10px">🇳🇴 ${helligdager[editDate]} · ${initJobSett.helligSats||133}% helligdagstillegg</div>`:`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px;cursor:pointer"><input type="checkbox" id="vHellig" ${vakt.hellig?'checked':''}> Helligdag for jobben (${initJobSett.helligSats||133}% tillegg)</label>`}
-        ${profiles.length > 1
-          ? `<div style="margin-bottom:10px"><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Jobb</label><select id="vJobId" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px;font-weight:600">${profiles.map(p=>`<option value="${p.id}"${initJobId===p.id?' selected':''}>${p.name}</option>`).join('')}</select></div>`
-          : `<input type="hidden" id="vJobId" value="${initJobId}">`}
-        <div id="kodeBtnArea" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-          <div><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Start</label>
-            <input id="vStart" type="time" value="${vakt.start||''}" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:15px;font-weight:600"></div>
-          <div><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Slutt</label>
-            <input id="vSlutt" type="time" value="${vakt.end||''}" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:15px;font-weight:600"></div>
-          <div style="display:flex;gap:6px;align-items:flex-end;padding-bottom:1px">
-            <button class="sort-btn sort-active" id="saveVaktBtn">Lagre</button>
-            ${vakt.start?'<button class="sort-btn" id="delVaktBtn" style="color:#f44336">Slett</button>':''}
-            <button class="sort-btn" id="cancelVaktBtn">Avbryt</button>
-          </div>
-        </div>
-        <div id="vPreview" style="margin-top:10px;font-size:12px;color:var(--text-muted)"></div>`;
-      calWrap.appendChild(form);
+      const dayHeadHtml = `<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:${helligdager[editDate]?'4px':'10px'}">${DAGFULL[dObj.getDay()].charAt(0).toUpperCase()+DAGFULL[dObj.getDay()].slice(1)} ${parseInt(dParts[2])}. ${monthsNo[parseInt(dParts[1])-1]}</div>${helligdager[editDate]?`<div style="font-size:11px;color:#f5a623;font-weight:600;margin-bottom:10px">🇳🇴 ${helligdager[editDate]}</div>`:''}`;
 
-      // Populate kode buttons for a job — refreshed when job selector changes
-      let updatePreview = null; // forward ref so kode-btn clicks can call it after definition
-      const renderKodeButtons = (jobId, activeKode) => {
-        const area = document.getElementById('kodeBtnArea');
-        if (!area) return;
-        const koder = getJobbKoder(jobId);
-        area.innerHTML = koder.map(k =>
-          `<button class="kode-btn sort-btn${activeKode===k.kode?' sort-active':''}" data-kode="${k.kode}" data-start="${k.start}" data-end="${k.end}" style="text-align:center;min-width:46px;padding:5px 8px;line-height:1.2"><span style="font-weight:700;font-size:13px;display:block">${k.kode}</span><span style="font-size:9px;color:var(--text-muted)">${k.start.replace(':','꞉')}–${k.end.replace(':','꞉')}</span></button>`
-        ).join('');
-        area.querySelectorAll('.kode-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            document.getElementById('vStart').value = btn.dataset.start;
-            document.getElementById('vSlutt').value = btn.dataset.end;
-            area.querySelectorAll('.kode-btn').forEach(b => b.classList.remove('sort-active'));
-            btn.classList.add('sort-active');
-            updatePreview?.();
+      const panel = document.createElement('div');
+      panel.className='card'; panel.style.cssText='margin-bottom:12px';
+      calWrap.appendChild(panel);
+
+      if (!shiftFormOpen) {
+        // ── List view: every shift already on this day, plus a way to add one more ──
+        panel.innerHTML = dayHeadHtml + `<div id="dayShiftList"></div><div style="display:flex;gap:6px;margin-top:10px"><button class="sort-btn sort-active" id="addShiftBtn" style="font-size:12px">+ Legg til vakt</button><button class="sort-btn" id="closeDayBtn" style="font-size:12px">Lukk</button></div>`;
+        const listEl = document.getElementById('dayShiftList');
+        if (dayVakter.length === 0) {
+          listEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Ingen vakter denne dagen ennå</div>';
+        } else {
+          listEl.innerHTML = dayVakter.map((v, idx) => {
+            const jobSett = getJobbprofil(v.jobId);
+            const res = calcVaktPay(v, jobSett, editDate, isVaktHelligdag(editDate, v, helligdager));
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light)">
+              <div style="font-size:12px">
+                ${v.kode?`<span style="font-weight:800;margin-right:4px">${v.kode}</span>`:''}<span style="font-weight:600">${v.start}–${v.end}</span>${profiles.length>1?`<span style="color:var(--text-muted);margin-left:6px">${jobSett.name||''}</span>`:''}
+                <div style="color:#4caf50;font-weight:700;margin-top:2px">${Math.round(res.pay).toLocaleString('nb-NO')} kr</div>
+              </div>
+              <div style="display:flex;gap:4px">
+                <button class="sort-btn edit-shift-btn" data-idx="${idx}" style="font-size:10px;padding:2px 7px">Rediger</button>
+                <button class="sort-btn del-shift-btn" data-idx="${idx}" style="font-size:10px;padding:2px 7px;color:#f44336">Slett</button>
+              </div>
+            </div>`;
+          }).join('');
+          listEl.querySelectorAll('.edit-shift-btn').forEach(btn => {
+            btn.addEventListener('click', () => { editingShiftIdx = parseInt(btn.dataset.idx); shiftFormOpen = true; renderCal(); });
+          });
+          listEl.querySelectorAll('.del-shift-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const idx = parseInt(btn.dataset.idx);
+              showConfirmDialog('Slette denne vakten?', () => {
+                const all = loadVakter();
+                const arr = Array.isArray(all[editDate]) ? [...all[editDate]] : [];
+                arr.splice(idx, 1);
+                if (arr.length === 0) delete all[editDate]; else all[editDate] = arr;
+                saveVakter(all); renderCal();
+              });
+            });
+          });
+        }
+        document.getElementById('addShiftBtn').addEventListener('click', () => { editingShiftIdx = null; shiftFormOpen = true; renderCal(); });
+        document.getElementById('closeDayBtn').addEventListener('click', () => { editDate = null; renderCal(); });
+
+      } else {
+        // ── Form view: add a new shift, or edit dayVakter[editingShiftIdx] ──
+        const shiftBeingEdited = (editingShiftIdx != null && dayVakter[editingShiftIdx]) ? dayVakter[editingShiftIdx] : {};
+        const initJobId   = shiftBeingEdited.jobId || profiles[0]?.id || '';
+        const initJobSett = getJobbprofil(initJobId);
+        panel.innerHTML = dayHeadHtml + `
+          ${helligdager[editDate]?'':`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px;cursor:pointer"><input type="checkbox" id="vHellig" ${shiftBeingEdited.hellig?'checked':''}> Helligdag for jobben (${initJobSett.helligSats||133}% tillegg)</label>`}
+          ${profiles.length > 1
+            ? `<div style="margin-bottom:10px"><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Jobb</label><select id="vJobId" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px;font-weight:600">${profiles.map(p=>`<option value="${p.id}"${initJobId===p.id?' selected':''}>${p.name}</option>`).join('')}</select></div>`
+            : `<input type="hidden" id="vJobId" value="${initJobId}">`}
+          <div id="kodeBtnArea" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Start</label>
+              <input id="vStart" type="time" value="${shiftBeingEdited.start||''}" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:15px;font-weight:600"></div>
+            <div><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Slutt</label>
+              <input id="vSlutt" type="time" value="${shiftBeingEdited.end||''}" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:15px;font-weight:600"></div>
+            <div style="display:flex;gap:6px;align-items:flex-end;padding-bottom:1px">
+              <button class="sort-btn sort-active" id="saveVaktBtn">Lagre</button>
+              ${editingShiftIdx != null?'<button class="sort-btn" id="delVaktBtn" style="color:#f44336">Slett</button>':''}
+              <button class="sort-btn" id="cancelVaktBtn">Avbryt</button>
+            </div>
+          </div>
+          <div id="vPreview" style="margin-top:10px;font-size:12px;color:var(--text-muted)"></div>`;
+
+        // Populate kode buttons for a job — refreshed when job selector changes
+        let updatePreview = null; // forward ref so kode-btn clicks can call it after definition
+        const renderKodeButtons = (jobId, activeKode) => {
+          const area = document.getElementById('kodeBtnArea');
+          if (!area) return;
+          const koder = getJobbKoder(jobId);
+          area.innerHTML = koder.map(k =>
+            `<button class="kode-btn sort-btn${activeKode===k.kode?' sort-active':''}" data-kode="${k.kode}" data-start="${k.start}" data-end="${k.end}" style="text-align:center;min-width:46px;padding:5px 8px;line-height:1.2"><span style="font-weight:700;font-size:13px;display:block">${k.kode}</span><span style="font-size:9px;color:var(--text-muted)">${k.start.replace(':','꞉')}–${k.end.replace(':','꞉')}</span></button>`
+          ).join('');
+          area.querySelectorAll('.kode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              document.getElementById('vStart').value = btn.dataset.start;
+              document.getElementById('vSlutt').value = btn.dataset.end;
+              area.querySelectorAll('.kode-btn').forEach(b => b.classList.remove('sort-active'));
+              btn.classList.add('sort-active');
+              updatePreview?.();
+            });
+          });
+        };
+        renderKodeButtons(initJobId, shiftBeingEdited.kode);
+
+        updatePreview = () => {
+          const v = { start: document.getElementById('vStart').value, end: document.getElementById('vSlutt').value };
+          if (!v.start || !v.end) return;
+          const jobSett = getJobbprofil(document.getElementById('vJobId')?.value);
+          const helligNow = isVaktHelligdag(editDate, { hellig: document.getElementById('vHellig')?.checked }, helligdager);
+          const res = calcVaktPay(v, jobSett, editDate, helligNow);
+          const parts = [];
+          if (res.eveningH > 0) parts.push(`${res.eveningH.toFixed(1)}t kveld +${Math.round(res.eveningH * jobSett.kveldSats).toLocaleString('nb-NO')} kr`);
+          if (res.nightH > 0)   parts.push(`${res.nightH.toFixed(1)}t natt +${Math.round(res.nightH * jobSett.nattSats).toLocaleString('nb-NO')} kr`);
+          if (res.helgH > 0)    parts.push(`helg +${Math.round(res.helgH * jobSett.helgSats).toLocaleString('nb-NO')} kr`);
+          if (res.helligH > 0)  parts.push(`helligdag +${Math.round(res.helligH * jobSett.timepris * ((jobSett.helligSats || 133) / 100)).toLocaleString('nb-NO')} kr`);
+          document.getElementById('vPreview').innerHTML = `<strong>${res.hours.toFixed(1)} t</strong> · Estimert: <strong style="color:#4caf50">${Math.round(res.pay).toLocaleString('nb-NO')} kr</strong>${parts.length ? ' · ' + parts.join(', ') : ''}`;
+        };
+        if (shiftBeingEdited.start) updatePreview();
+        document.getElementById('vStart').addEventListener('input', updatePreview);
+        document.getElementById('vSlutt').addEventListener('input', updatePreview);
+        document.getElementById('vHellig')?.addEventListener('change', updatePreview);
+        document.getElementById('vJobId')?.addEventListener('change', e => {
+          renderKodeButtons(e.target.value, null);
+          updatePreview?.();
+        });
+        document.getElementById('saveVaktBtn').addEventListener('click', () => {
+          const startV = document.getElementById('vStart').value;
+          const endV   = document.getElementById('vSlutt').value;
+          if (!startV || !endV) { showToast('Fyll inn start og slutt'); return; }
+          const all = loadVakter();
+          const arr = Array.isArray(all[editDate]) ? [...all[editDate]] : [];
+          const activeKode = panel.querySelector('.kode-btn.sort-active');
+          const helligChecked = document.getElementById('vHellig')?.checked || false;
+          const selectedJobId = document.getElementById('vJobId')?.value || profiles[0]?.id;
+          const shift = { start: startV, end: endV, kode: activeKode?.dataset.kode || null, hellig: helligChecked || undefined, jobId: selectedJobId };
+          if (editingShiftIdx != null && arr[editingShiftIdx]) arr[editingShiftIdx] = shift; else arr.push(shift);
+          all[editDate] = arr;
+          saveVakter(all);
+          // Back to the list, not closing the day — makes adding a second
+          // shift on the same day a single extra click ("+ Legg til vakt").
+          editingShiftIdx = null; shiftFormOpen = false;
+          renderCal();
+        });
+        document.getElementById('delVaktBtn')?.addEventListener('click', () => {
+          showConfirmDialog('Er du sikker på at du vil slette denne vakten?', () => {
+            const all = loadVakter();
+            const arr = Array.isArray(all[editDate]) ? [...all[editDate]] : [];
+            arr.splice(editingShiftIdx, 1);
+            if (arr.length === 0) { delete all[editDate]; editDate = null; }
+            else all[editDate] = arr;
+            saveVakter(all);
+            editingShiftIdx = null; shiftFormOpen = false;
+            renderCal();
           });
         });
-      };
-      renderKodeButtons(initJobId, vakt.kode);
-
-      updatePreview = () => {
-        const v = { start: document.getElementById('vStart').value, end: document.getElementById('vSlutt').value };
-        if (!v.start || !v.end) return;
-        const jobSett = getJobbprofil(document.getElementById('vJobId')?.value);
-        const helligNow = isVaktHelligdag(editDate, { hellig: document.getElementById('vHellig')?.checked }, helligdager);
-        const res = calcVaktPay(v, jobSett, editDate, helligNow);
-        const parts = [];
-        if (res.eveningH > 0) parts.push(`${res.eveningH.toFixed(1)}t kveld +${Math.round(res.eveningH * jobSett.kveldSats).toLocaleString('nb-NO')} kr`);
-        if (res.nightH > 0)   parts.push(`${res.nightH.toFixed(1)}t natt +${Math.round(res.nightH * jobSett.nattSats).toLocaleString('nb-NO')} kr`);
-        if (res.helgH > 0)    parts.push(`helg +${Math.round(res.helgH * jobSett.helgSats).toLocaleString('nb-NO')} kr`);
-        if (res.helligH > 0)  parts.push(`helligdag +${Math.round(res.helligH * jobSett.timepris * ((jobSett.helligSats || 133) / 100)).toLocaleString('nb-NO')} kr`);
-        document.getElementById('vPreview').innerHTML = `<strong>${res.hours.toFixed(1)} t</strong> · Estimert: <strong style="color:#4caf50">${Math.round(res.pay).toLocaleString('nb-NO')} kr</strong>${parts.length ? ' · ' + parts.join(', ') : ''}`;
-      };
-      if (vakt.start) updatePreview();
-      document.getElementById('vStart').addEventListener('input', updatePreview);
-      document.getElementById('vSlutt').addEventListener('input', updatePreview);
-      document.getElementById('vHellig')?.addEventListener('change', updatePreview);
-      document.getElementById('vJobId')?.addEventListener('change', e => {
-        renderKodeButtons(e.target.value, null);
-        updatePreview?.();
-      });
-      document.getElementById('saveVaktBtn').addEventListener('click', () => {
-        const all = loadVakter();
-        const activeKode = form.querySelector('.kode-btn.sort-active');
-        const helligChecked = document.getElementById('vHellig')?.checked || false;
-        const selectedJobId = document.getElementById('vJobId')?.value || profiles[0]?.id;
-        all[editDate] = {
-          start: document.getElementById('vStart').value,
-          end: document.getElementById('vSlutt').value,
-          kode: activeKode?.dataset.kode || null,
-          hellig: helligChecked || undefined,
-          jobId: selectedJobId,
-        };
-        saveVakter(all); editDate = null; renderCal();
-      });
-      document.getElementById('delVaktBtn')?.addEventListener('click', () => {
-        showConfirmDialog('Er du sikker på at du vil slette denne vakten?', () => {
-          const all=loadVakter(); delete all[editDate]; saveVakter(all); editDate=null; renderCal();
+        document.getElementById('cancelVaktBtn').addEventListener('click', () => {
+          // A brand-new, still-empty day cancels out entirely (old behavior);
+          // a day that already has shifts just drops back to its list.
+          if (dayVakter.length === 0) editDate = null;
+          editingShiftIdx = null; shiftFormOpen = false;
+          renderCal();
         });
-      });
-      document.getElementById('cancelVaktBtn').addEventListener('click', () => { editDate=null; renderCal(); });
+      }
     }
 
-    // Monthly summary
-    const monthVakter = Object.entries(vakter).filter(([k]) => k.startsWith(monthPfx));
+    // Monthly summary — flatten each day's shift array into one (date, shift)
+    // list first, so a double-shift day counts as two vakter here, same as
+    // it would if worked on two separate days.
+    const monthVakter = [];
+    Object.entries(vakter).filter(([k]) => k.startsWith(monthPfx)).forEach(([k, arr]) => {
+      (arr || []).forEach(v => monthVakter.push([k, v]));
+    });
     if (monthVakter.length > 0) {
       let tH = 0, tP = 0;
       const byJob = {};

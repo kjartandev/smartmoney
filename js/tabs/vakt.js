@@ -12,7 +12,20 @@ function saveVaktkoder(k) { localStorage.setItem(VAKTKODER_KEY, JSON.stringify(k
 const VAKTER_KEY    = 'okonomi_vakter_v1';
 const VAKTSETT_KEY  = 'okonomi_vaktsett_v1';
 const VAKT_SETT_DEF = {timepris:200,kveldFra:'17:00',kveldSats:40,nattFra:'21:00',nattTil:'06:00',nattSats:60,helgSats:50,helligSats:133,pauseMin:30};
-function loadVakter()   { try{return JSON.parse(localStorage.getItem(VAKTER_KEY)||'{}')}catch{return{}} }
+// Each date key holds an ARRAY of shifts, not one — a day can have two shifts
+// on different jobs (e.g. a morning at one job, evening at another), each
+// with its own hours and pay. Old saves have one plain object per date; wrap
+// those in an array once and persist it, so every caller can always assume
+// an array and every date only needs migrating the first time it loads.
+function loadVakter() {
+  let v; try { v = JSON.parse(localStorage.getItem(VAKTER_KEY)||'{}'); } catch { v = {}; }
+  let migrated = false;
+  for (const k in v) {
+    if (v[k] && !Array.isArray(v[k])) { v[k] = [v[k]]; migrated = true; }
+  }
+  if (migrated) saveVakter(v);
+  return v;
+}
 function saveVakter(v)  { localStorage.setItem(VAKTER_KEY,JSON.stringify(v)); idbSet(VAKTER_KEY,v); }
 function loadVaktSett() { return Object.assign({},VAKT_SETT_DEF,JSON.parse(localStorage.getItem(VAKTSETT_KEY)||'{}')); }
 function saveVaktSett(s){ localStorage.setItem(VAKTSETT_KEY,JSON.stringify(s)); }
@@ -125,7 +138,12 @@ function calcVaktPay(vakt, sett, dk, isHelligdag=false) {
   let eveMin=ov(s,d1e,kF,nF), nightMin=ov(s,d1e,nF,1440)+ov(s,d1e,0,nT);
   if(e2>1440){const d2e=e2-1440; eveMin+=ov(0,d2e,kF,nF); nightMin+=ov(0,d2e,nF,1440)+ov(0,d2e,0,nT);}
   const hours=workMin/60, eveningH=eveMin/60, nightH=nightMin/60;
-  const date=new Date(dk); const isHelg=date.getDay()===0||date.getDay()===6;
+  const date=new Date(dk);
+  // sett.helgLordag is per-job: some jobs (e.g. retail) pay no weekend
+  // supplement on Saturday, only Sunday. Undefined means "not set yet" on an
+  // older profile, which must keep counting Saturday — the app's behavior
+  // before this option existed — so only an explicit false turns it off.
+  const isHelg=date.getDay()===0||(date.getDay()===6&&sett.helgLordag!==false);
   const helgH=isHelg?hours:0, helligH=isHelligdag?hours:0;
   const pay=hours*sett.timepris
     +eveningH*sett.kveldSats
