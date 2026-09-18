@@ -1,22 +1,39 @@
-/* ── Mobile responsive ── */
+/* ── Mobile responsive ──────────────────────────────────────────── */
+
+/* Touch behaviour, all sizes. touch-action removes the ~300ms delay
+   browsers add before firing a tap (they were waiting to see if it was a
+   double-tap zoom); overscroll-behavior stops the whole shell rubber-banding
+   against iOS when a scroll inside .content hits its end. */
+@media (hover: none) and (pointer: coarse) {
+  * { -webkit-tap-highlight-color: transparent; }
+  body { touch-action: manipulation; overscroll-behavior: none; }
+}
+
 @media (max-width: 768px) {
+  /* Safe areas: in an installed PWA there is no browser chrome, so without
+     these the topbar sits under the notch / Dynamic Island and the bottom nav
+     under the home indicator. env() is 0 everywhere that has no such cutout,
+     so these are harmless on Android and in a normal browser tab. */
   .topbar {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
+    padding-top: env(safe-area-inset-top);
   }
   .topbar-brand {
     border-right: none;
     border-bottom: 1px solid rgba(255,255,255,0.12);
-    padding: 14px 16px;
+    padding: 12px 16px;
   }
   .topbar-brand h1 { font-size: 18px; }
+  .topbar-logo { width: 38px; height: 38px; border-radius: 10px; }
   .topbar-stats {
     padding: 0 8px;
     overflow-x: auto;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
   .topbar-stats::-webkit-scrollbar { display: none; }
-  .stat-block { padding: 12px 16px; }
+  .stat-block { padding: 10px 14px; }
   .stat-block .sb-val { font-size: 17px; }
   .topbar-actions {
     padding: 8px 12px;
@@ -24,10 +41,12 @@
     border-top: 1px solid rgba(255,255,255,0.12);
     overflow-x: auto;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
   }
   .topbar-actions::-webkit-scrollbar { display: none; }
-  .top-btn { padding: 6px 12px; font-size: 12px; min-height: 36px; }
+  /* 44px is Apple's minimum comfortable tap target; 36px was a mouse size. */
+  .top-btn { padding: 8px 14px; font-size: 13px; min-height: 44px; flex-shrink: 0; }
 
   .app-body {
     grid-template-columns: 1fr;
@@ -39,13 +58,15 @@
   .sidebar {
     flex-direction: row;
     padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
     border-right: none;
     border-top: 1px solid var(--border);
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
     flex-shrink: 0;
-    height: 60px;
+    height: calc(60px + env(safe-area-inset-bottom));
     align-items: stretch;
   }
   .sidebar::-webkit-scrollbar { display: none; }
@@ -56,10 +77,11 @@
   .nav-item {
     flex-direction: column;
     gap: 2px;
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-left: none;
     border-bottom: 3px solid transparent;
     min-height: 60px;
+    min-width: 62px;
     font-size: 10px;
     align-items: center;
     justify-content: center;
@@ -72,16 +94,221 @@
   .nav-item .ni-emoji { font-size: 20px; width: auto; }
   .nav-label { display: block; }
 
-  .content { padding: 16px; overflow-y: auto; flex: 1; min-height: 0; }
+  .content {
+    padding: 16px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left));
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+  }
   .two-col, .summary-grid { grid-template-columns: 1fr; }
-  .card { overflow-x: auto; }
-  .tx-table { min-width: 480px; }
+  .card { overflow-x: auto; padding: 16px; border-radius: 12px; }
+  .section-head { margin: 22px 0 10px; }
 
-  #slidePanel { width: 100%; right: -100%; }
+  /* Any input under 16px makes iOS zoom the whole page in on focus, and it
+     does not zoom back out — the layout is left stranded mid-zoom. 16px is
+     the threshold that stops it, so every field that can take focus gets it. */
+  input, select, textarea,
+  .tx-note-input, .budget-input, .search-bar input {
+    font-size: 16px;
+  }
+  .tx-note-input { width: 100%; padding: 8px 10px; }
+  .budget-input { width: 110px; padding: 8px 10px; }
+  .search-bar { padding: 4px 10px; }
+  .search-bar input { min-height: 40px; }
+
+  #slidePanel { width: 100%; right: -100%; padding-bottom: env(safe-area-inset-bottom); }
   #slidePanel.open { right: 0; }
   .upload-box { width: 90vw; padding: 32px 24px; }
 }
 
-@media (max-width: 480px) {
+/* ── Phone: transaction table becomes stacked cards ───────────────
+   Six columns cannot fit a phone, and a table that scrolls sideways inside
+   a card is miserable to read. Each row is re-laid out as a small card:
+   icon left, description and amount on the top line, date and category on a
+   quiet second line, note underneath. Head row is dropped since each value
+   now sits where its meaning is obvious. */
+@media (max-width: 560px) {
+  .tx-table { min-width: 0; display: block; font-size: 14px; }
+  .tx-table thead { display: none; }
+  .tx-table tbody, .tx-table tfoot { display: block; width: 100%; }
+  .card { overflow-x: visible; }
+
+  .tx-table tbody tr {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon desc amt"
+      "icon date cat"
+      "note note note";
+    gap: 3px 10px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .tx-table tbody tr:last-child { border-bottom: none; }
+  .tx-table tbody td { display: block; padding: 0; border: none; }
+
+  .tx-table tbody td:nth-child(1) { grid-area: icon; }
+  .tx-table tbody td:nth-child(2) { grid-area: desc; font-weight: 500; min-width: 0; }
+  .tx-table tbody td:nth-child(3) { grid-area: date; font-size: 12px; color: var(--text-muted); }
+  .tx-table tbody td:nth-child(4) { grid-area: cat;  font-size: 12px; text-align: right; }
+  .tx-table tbody td:nth-child(5) { grid-area: note; }
+  .tx-table tbody td:nth-child(6) { grid-area: amt;  text-align: right; font-weight: 600; white-space: nowrap; }
+
+  /* Desktop caps this at 260px; on a phone the column is whatever is left, so
+     let it fill and cut with an ellipsis instead of overflowing the card. */
+  .tx-name-cell .tn { max-width: 100%; }
+
+  .tx-table tfoot tr {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
+  .tx-table tfoot td { display: block; padding: 10px 0 !important; border: none; }
+  .tx-table tfoot td[colspan] { flex: 1 1 100%; }
+
   .nav-label { display: none; }
+  .nav-item { min-width: 54px; padding: 6px 10px; }
+  .sum-card .sc-val { font-size: 19px; }
+}
+
+/* ── Inline grids written in JS ───────────────────────────────────
+   Most tab layouts set grid-template-columns as an inline style rather than
+   through a class (47 of them across js/tabs/). An inline style beats any
+   normal rule in a stylesheet, so a plain media query cannot reach them —
+   they stayed multi-column on a phone and pushed their own cards off the
+   right edge. A stylesheet declaration marked !important does outrank a
+   non-important inline one, which is what these use.
+
+   Matched on the exact inline text, so only the equal-width grids are
+   touched. Deliberately NOT matched: "60px 1fr" / "52px 1fr" (icon beside
+   content), "1fr auto" (label beside value) and "repeat(7,1fr)" (a week,
+   which has to stay seven across to still read as one) — those are already
+   right on a phone. */
+@media (max-width: 768px) {
+  /* Three and four across become two: stacking financial summary cards one
+     per row pushes the actual content far below the fold. */
+  [style*="grid-template-columns:1fr 1fr 1fr"],
+  [style*="grid-template-columns:repeat(3,1fr)"],
+  [style*="grid-template-columns:repeat(4,1fr)"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Two across becomes one — at phone width a half-column is too narrow for
+     a label and a number to sit together without wrapping badly. */
+  [style*="grid-template-columns:repeat(2,1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Written last so it wins over the three-column rule above, which its own
+     text is a prefix of ("1fr 1fr" is a substring of "1fr 1fr 1fr"). */
+  [style="display:grid;grid-template-columns:1fr 1fr;gap:12px"],
+  [style*="grid-template-columns:1fr 1fr;"]:not([style*="1fr 1fr 1fr"]) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Five columns cannot work at this width whatever the units. */
+  [style*="grid-template-columns:44px 1.4fr 1fr 1fr auto"] {
+    grid-template-columns: 44px 1fr auto !important;
+  }
+
+  /* Expand/collapse arrows belong to the desktop sidebar's grouped nav; in
+     the bottom bar there is nothing to expand and they just crowd the icon. */
+  .navg-arrow { display: none !important; }
+
+  /* Decorative, and it holds a permanent strip of height directly under the
+     nav bar where vertical space is scarcest. */
+  .app-footer { display: none; }
+}
+
+/* ── Flatten the grouped nav for the bottom bar ───────────────────
+   The sidebar nests most tabs inside collapsible groups: three
+   .nav-group-head entries (Oversikt, Lønn, Transaksjoner) each hiding a
+   .nav-group-body of sub-tabs behind an expand arrow, plus Verktøy on its
+   own. That works down a tall sidebar. Turned on its side into a 60px bar it
+   does not: only the four top-level entries ever showed, and the seven
+   sub-tabs — Innsikt, Sparing, Skatt, Budsjett, Uke for uke, Privat,
+   Måneder — had no way to be reached at all on a phone.
+
+   display:contents removes the group wrapper and the body wrapper from the
+   layout without hiding what is inside them, so every tab becomes a direct
+   child of the bar and simply scrolls. It also overrides the inline
+   display:none the collapse logic writes onto a closed body — hence the
+   !important, which is aimed at that inline style, not at another rule. */
+@media (max-width: 768px) {
+  .nav-group { display: contents; }
+  .nav-group-body { display: contents !important; }
+
+  /* Group heads are a different element from .nav-item but are now peers of
+     them in the bar, so they need the same treatment to not look foreign. */
+  .nav-group-head,
+  .nav-item.nav-sub {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 14px;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    min-height: 60px;
+    min-width: 62px;
+    font-size: 10px;
+    font-weight: 500;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: transparent;
+  }
+  .nav-group-head.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--green-accent);
+  }
+  .nav-group-head .ni-emoji,
+  .nav-item.nav-sub .ni-emoji { font-size: 20px; width: auto; }
+  /* Desktop lets the label take the remaining width to push the arrow right;
+     stacked under an icon that would stretch the item and break the row. */
+  .nav-group-head .nav-label { flex: none; }
+  .nav-group-body { background: transparent; }
+}
+
+@media (max-width: 560px) {
+  .nav-group-head,
+  .nav-item.nav-sub { min-width: 54px; padding: 6px 10px; }
+}
+
+/* ── Phone refinements ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Each stat block was wrapping its own sub-label ("0 transaksjoner" onto two
+     lines), which set the height of the whole row. Holding them on one line
+     makes every block narrower and the row shorter — the strip still scrolls
+     sideways, there is just less of it to scroll and more screen left over. */
+  .stat-block .sb-label,
+  .stat-block .sb-sub { white-space: nowrap; }
+  .stat-block { padding: 8px 14px; }
+  .stat-block .sb-sub { font-size: 11px; }
+}
+
+@media (max-width: 560px) {
+  /* Bank descriptions are long ("REMA 1000 ROSEBY …"), and a single line with
+     an ellipsis cut most of them at the third word. Two lines fit the useful
+     part of almost every merchant name; the clamp keeps a runaway one from
+     pushing the row taller than the rest. */
+  .tx-name-cell .tn {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.25;
+  }
+  /* The category dropdown is a full-width control on desktop; here it sits
+     beside the date and would otherwise take the whole second line. */
+  .tx-table tbody td:nth-child(4) select,
+  .tx-table tbody td:nth-child(4) .cat-select {
+    max-width: 100%;
+    font-size: 13px;
+    padding: 4px 6px;
+  }
+  .tx-table tbody tr { padding: 14px 0; }
 }

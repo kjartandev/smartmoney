@@ -57,3 +57,15 @@ body.dark {
   --footer-color: #5a5a5a;
   --green-accent: #4caf50;
 }
+
+/* ── Mobile viewport height ──────────────────────────────────────
+   100vh on a phone means the viewport INCLUDING the browser's address
+   bar, so a 100vh shell with overflow:hidden pushes its own bottom edge
+   — the nav bar, on mobile — under the chrome where it cannot be reached
+   or scrolled to. dvh ("dynamic viewport height") is the visible height
+   as it actually is right now, shrinking and growing as the address bar
+   hides and returns. Kept behind @supports so browsers without dvh fall
+   back to the 100vh definition above rather than getting an invalid one. */
+@supports (height: 100dvh) {
+  :root { --shell-h: calc(100dvh / var(--app-zoom)); }
+}
