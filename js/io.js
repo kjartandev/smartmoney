@@ -98,6 +98,14 @@ function processBackupFile(file) {
 
 function importTxs(newTxs) {
   if (!newTxs.length) { showToast('Ingen transaksjoner funnet'); return; }
+  // Finn kontoeierens navn første gang en utskrift uten Type-kolonne lastes
+  // inn — classify() trenger det for å skille egne overføringer fra betalinger
+  // til andre. Settes bare når det ikke allerede står noe, så et navn brukeren
+  // har rettet selv aldri blir overskrevet av en senere import.
+  if (!loadKontoeier()) {
+    const eier = detectKontoeier(newTxs);
+    if (eier) saveKontoeier(eier);
+  }
   const newMonths = [...new Set(newTxs.map(t=>getMonthKey(t.dato)))];
   saveStored(mergeNewTxs(loadStored(), newTxs));
   activeMonthFilter = newMonths[newMonths.length-1];

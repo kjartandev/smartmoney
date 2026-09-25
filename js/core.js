@@ -205,6 +205,24 @@ function classify(tx) {
   if (tx.inn > 0 && tx.type === 'immediate') return 'folk';
   if (tx.ut > 0 && tx.type === 'immediate') return 'folk';
   if (tx.inn > 0 && tx.type === 'overføring') return 'internal';
+  // ── Kontoutskrifter uten Type-kolonne ────────────────────────────
+  // Reglene over hviler alle på Type/Undertype, som dette formatet ikke har,
+  // så uten dette faller hver eneste overføring ned i «diverse» og telles som
+  // forbruk. I en utskrift full av flytting mellom egne kontoer blir månedens
+  // utgifter da mangedoblet. Kjøres foran kategorisøket under, fordi
+  // kontostrukturen er sikrere holdepunkt enn et tilfeldig ordtreff i et navn.
+  if (!tx.type) {
+    const b = tx.beskr.trim().toLowerCase();
+    if (tx.inn > 0 && b.startsWith('lønn fra')) return 'income';
+    if (tx.til && tx.fra) {
+      // Innbetaling fra et aksjeselskap er som regel lønn. Krever at begge
+      // kontoene er fylt, så kortrefusjoner og salg (ett kontofelt) holdes ute.
+      if (tx.inn > 0 && /\bas\.?$/.test(b)) return 'income';
+      const eier = loadKontoeier();
+      if (eier && b === eier) return 'internal';
+      return 'folk';
+    }
+  }
   for (const cat of CATS.slice(0,-1)) if (cat.match.some(m => k.includes(m))) return cat.id;
   return 'diverse';
 }
@@ -242,8 +260,36 @@ function parseCSV(text) {
     subtype:  idx.subtype >= 0 ? (c[idx.subtype]||'').trim().toLowerCase() : '',
     inn:      parseAmt(c[idx.inn]),
     ut:       Math.abs(parseAmt(c[idx.ut])),
-    reserved: idx.status  >= 0 ? (c[idx.status]||'').trim().toLowerCase() === 'reservert' : false
+    reserved: idx.status  >= 0 ? (c[idx.status]||'').trim().toLowerCase() === 'reservert' : false,
+    // Begge formatene har disse. En overføring fyller begge; et kortkjøp i
+    // butikk fyller bare én. Uten Type-kolonne er det eneste holdepunktet
+    // for å skille flytting av egne penger fra ekte forbruk — se classify().
+    til:      i('til konto') >= 0 ? (c[i('til konto')]||'').trim() : '',
+    fra:      i('fra konto') >= 0 ? (c[i('fra konto')]||'').trim() : ''
   }));
+}
+
+// ── Kontoeier ───────────────────────────────────────────────────
+// Kontoutskrifter uten Type-kolonne merker overføringer mellom eierens egne
+// kontoer med eierens eget navn — nøyaktig samme form som en Vipps til en
+// venn. Navnet som dominerer overføringsradene er derfor eieren selv. Krever
+// klar margin, så en venn man betaler ofte ikke forveksles med eieren.
+const KONTOEIER_KEY = 'okonomi_kontoeier_v1';
+function loadKontoeier()  { try { return localStorage.getItem(KONTOEIER_KEY) || ''; } catch { return ''; } }
+function saveKontoeier(n) { localStorage.setItem(KONTOEIER_KEY, n); idbSet(KONTOEIER_KEY, n); }
+function detectKontoeier(txs) {
+  const tell = {};
+  txs.forEach(t => {
+    if (!t.type && t.til && t.fra && t.beskr) {
+      const n = t.beskr.trim().toLowerCase();
+      tell[n] = (tell[n] || 0) + 1;
+    }
+  });
+  const rangert = Object.entries(tell).sort((a, b) => b[1] - a[1]);
+  if (!rangert.length) return '';
+  const [navn, antall] = rangert[0];
+  const nestMest = rangert[1] ? rangert[1][1] : 0;
+  return (antall >= 5 && antall >= nestMest * 2) ? navn : '';
 }
 
 // ── IndexedDB fallback (Safari clears localStorage for file:// URIs) ──

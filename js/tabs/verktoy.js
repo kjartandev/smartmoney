@@ -958,10 +958,43 @@ function renderStudielanCard(container) {
 }
 
 // ── Main render ──────────────────────────────────────────────────
+function renderKontoeierCard(card) {
+  card.innerHTML = `
+    <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px">
+      Banken merker overføringer mellom dine egne kontoer med ditt eget navn —
+      helt likt en betaling til en venn. Appen bruker navnet for å skille dem,
+      så flytting av egne penger ikke telles som forbruk.
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+      <div style="flex:1;min-width:190px">
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Navnet ditt slik det står i kontoutskriften</label>
+        <input id="kontoeierInput" type="text" placeholder="Fornavn Etternavn" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:14px">
+      </div>
+      <button class="sort-btn sort-active" id="kontoeierSave">Lagre</button>
+    </div>`;
+  // Settes som verdi, ikke i malen over, så et navn med anførselstegn ikke
+  // bryter ut av attributtet.
+  card.querySelector('#kontoeierInput').value = loadKontoeier();
+  card.querySelector('#kontoeierSave').addEventListener('click', () => {
+    saveKontoeier(card.querySelector('#kontoeierInput').value.trim().toLowerCase());
+    showToast('Lagret — kategoriene er oppdatert');
+    boot(false);
+  });
+}
+
 function renderVerktoy() {
   setActiveNav('verktoy');
   const c = document.getElementById('mainContent');
   c.innerHTML = '';
+
+  // Kontoeier — bare for kontoutskrifter uten Type-kolonne, der eierens eget
+  // navn er det eneste som skiller egne overføringer fra betalinger til andre.
+  // Navnet gjettes ved import; her kan det rettes hvis gjettingen bommet.
+  if (loadStored().some(t => !t.type && t.til && t.fra)) {
+    const keHead = document.createElement('div'); keHead.className = 'section-head'; keHead.textContent = 'Kontoeier'; c.appendChild(keHead);
+    const keCard = document.createElement('div'); keCard.className = 'card'; c.appendChild(keCard);
+    renderKontoeierCard(keCard);
+  }
 
   // Abonnementer
   const aboHead = document.createElement('div'); aboHead.className = 'section-head'; aboHead.textContent = 'Abonnementer'; c.appendChild(aboHead);
