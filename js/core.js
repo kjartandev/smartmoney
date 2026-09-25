@@ -210,27 +210,40 @@ function classify(tx) {
 }
 
 // ── CSV Parser ──────────────────────────────────────────────────
+// Two export formats are recognized:
+//  - "Utført dato / Type / Undertype / Beløp inn / Beløp ut / Status" — the
+//    transaction-list export this app was originally built against. Fields
+//    are bare (no quotes).
+//  - "Dato / Rentedato / Inn / Ut / Til konto / Fra konto" — a full account
+//    statement from a different bank. No Type/Undertype/Status at all, so
+//    those come back empty on every row; fields are individually quoted
+//    ("24.09.2026";"Beskrivelse";...), which — unhandled — leaves the date
+//    starting with a stray `"` and makes every row fail the date check below.
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
-  const hdr = lines[0].split(';').map(h => h.trim().toLowerCase());
-  const i = n => hdr.indexOf(n);
-  const idx = { dato: i('utført dato'), beskr: i('beskrivelse'), type: i('type'), subtype: i('undertype'), inn: i('beløp inn'), ut: i('beløp ut'), status: i('status') };
-  const parseAmt = v => v && v.trim() ? parseFloat(v.replace(/\s/g,'').replace(',','.')) || 0 : 0;
-  return lines.slice(1).filter(l => {
-    const c = l.split(';');
-    return c.length >= 10 && /^\d{2}\.\d{2}\.\d{4}/.test((c[idx.dato]||'').trim());
-  }).map(l => {
-    const c = l.split(';');
-    return {
-      dato:     c[idx.dato].trim(),
-      beskr:    (c[idx.beskr]||'').trim(),
-      type:     (c[idx.type]||'').trim().toLowerCase(),
-      subtype:  (c[idx.subtype]||'').trim().toLowerCase(),
-      inn:      parseAmt(c[idx.inn]),
-      ut:       Math.abs(parseAmt(c[idx.ut])),
-      reserved: (c[idx.status]||'').trim().toLowerCase() === 'reservert'
-    };
+  if (lines[0]) lines[0] = lines[0].replace(/^﻿/, ''); // strip a UTF-8 BOM some exports lead with
+  const splitRow = l => l.split(';').map(f => {
+    f = f.trim();
+    return (f.startsWith('"') && f.endsWith('"')) ? f.slice(1, -1).replace(/""/g, '"') : f;
   });
+  const hdr = splitRow(lines[0]).map(h => h.toLowerCase());
+  const i = n => hdr.indexOf(n);
+  const idx = i('utført dato') !== -1
+    ? { dato: i('utført dato'), beskr: i('beskrivelse'), type: i('type'), subtype: i('undertype'), inn: i('beløp inn'), ut: i('beløp ut'), status: i('status') }
+    : { dato: i('dato'),        beskr: i('beskrivelse'), type: -1,        subtype: -1,             inn: i('inn'),        ut: i('ut'),        status: -1 };
+  if (idx.dato === -1 || idx.beskr === -1) return []; // neither known format matched
+  const parseAmt = v => v && v.trim() ? parseFloat(v.replace(/\s/g,'').replace(',','.')) || 0 : 0;
+  return lines.slice(1).map(splitRow).filter(c =>
+    /^\d{2}\.\d{2}\.\d{4}/.test((c[idx.dato]||'').trim())
+  ).map(c => ({
+    dato:     c[idx.dato].trim(),
+    beskr:    (c[idx.beskr]||'').trim(),
+    type:     idx.type    >= 0 ? (c[idx.type]||'').trim().toLowerCase()    : '',
+    subtype:  idx.subtype >= 0 ? (c[idx.subtype]||'').trim().toLowerCase() : '',
+    inn:      parseAmt(c[idx.inn]),
+    ut:       Math.abs(parseAmt(c[idx.ut])),
+    reserved: idx.status  >= 0 ? (c[idx.status]||'').trim().toLowerCase() === 'reservert' : false
+  }));
 }
 
 // ── IndexedDB fallback (Safari clears localStorage for file:// URIs) ──
