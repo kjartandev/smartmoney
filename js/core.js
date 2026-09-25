@@ -144,7 +144,10 @@ const CATS = [
   { id:'trening',   label:'Trening & Sport',        emoji:'🏋️', color:'#e91e63', match:['gym','sport outlet','intersport','sats','elixia','nyx*','funksjonell'] },
   { id:'helse',     label:'Helse & Apotek',         emoji:'💊', color:'#f44336', match:['apotek','vitusapotek','legevakt','lege','tannlege','optiker','sykehus','røntgen','roentgen','ekspedisjon p2'] },
   { id:'shopping',  label:'Shopping',               emoji:'🛍️', color:'#ff9800', match:['temu','netonnet','komplett','power','elkjøp','h&m','zara','primark','cubus','weekday','carlings','family nett','zalando','vipps*netonnet'] },
-  { id:'spiseute',  label:'Spise ute / Kafe',       emoji:'🍽️', color:'#ff5722', match:['mcdonald','burger king','kfc','subway','pizz','thai','sushi','restaurant','kafe','cafe','pub ','bakeri','braud','7-eleven '] },
+  // 'rpikene' fanger Jordbærpikene uansett hvordan banken skriver æ-en — den
+  // dukker opp som Æ, som Ã, og som # i ulike eksporter. Selve lønnen derfra
+  // treffes ikke av dette; den fanges som inntekt lenger oppe i classify().
+  { id:'spiseute',  label:'Spise ute / Kafe',       emoji:'🍽️', color:'#ff5722', match:['mcdonald','burger king','kfc','subway','pizz','thai','sushi','restaurant','kafe','cafe','pub ','bakeri','braud','7-eleven ','rpikene'] },
   { id:'reselling', label:'Salg / Reselling',       emoji:'🏷️', color:'#26a69a', match:[] },
   { id:'kredittkort',label:'Kredittkort',            emoji:'💳', color:'#546e7a', match:['kredittbanken'] },
   { id:'bankgebyr',  label:'Bankgebyrer',            emoji:'🏛️', color:'#90a4ae', match:['omkostning'] },
@@ -153,7 +156,11 @@ const CATS = [
 const SAVINGS_KW = ['overføring til','overføring fra','sparing','trustly','nordnet'];
 // Studielån/stipend fra Lånekassen bokføres av banken med Type = "Lønn", akkurat
 // som vanlig lønn. Uten denne listen ville støtten blitt talt som inntekt.
-const STUDIELAN_KW = ['lånekasse','lanekasse','lånekassen','statens lånekasse','utdanningsstøtte','utdanningsstotte'];
+// 'nekasse' og 'utdanningsst' er med fordi de ligger etter den norske
+// bokstaven i ordet og derfor treffer uansett hvordan banken koder å og ø —
+// uten dem faller en utbetaling skrevet «LÃ¥nekasse» ut av studielånet og
+// havner i Privat i stedet.
+const STUDIELAN_KW = ['lånekasse','lanekasse','lånekassen','statens lånekasse','nekasse','utdanningsstøtte','utdanningsstotte','utdanningsst'];
 const SPARING_BUCKETS_ALL = [];
 // Keep SPARING_BUCKETS as alias for backward compat (used by spareBucket for tx classification)
 const SPARING_BUCKETS = SPARING_BUCKETS_ALL;
