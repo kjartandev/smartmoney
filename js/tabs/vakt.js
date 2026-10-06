@@ -120,6 +120,13 @@ function saveJobbKoder(jobId, koder) {
   saveJobbprofiler(all);
 }
 
+// Hvilken jobb som sist ble brukt på en vakt. Uten dette starter skjemaet
+// alltid på den første profilen, så den som jobber mest på jobb nummer to
+// må bytte hver eneste gang en vakt føres inn.
+const SIST_JOBB_KEY = 'okonomi_sist_jobb_v1';
+function loadSistJobb()   { try { return localStorage.getItem(SIST_JOBB_KEY) || ''; } catch { return ''; } }
+function saveSistJobb(id) { try { localStorage.setItem(SIST_JOBB_KEY, id); } catch {} }
+
 // ── Lønnsperiode ────────────────────────────────────────────────
 // Jobber betaler ikke nødvendigvis for kalendermåneden. Går lønnsperioden
 // f.eks. fra den 20., hører vaktene 20.09–19.10 til samme utbetaling.

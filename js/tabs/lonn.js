@@ -782,13 +782,19 @@ function renderLonnskalkulator() {
       } else {
         // ── Form view: add a new shift, or edit dayVakter[editingShiftIdx] ──
         const shiftBeingEdited = (editingShiftIdx != null && dayVakter[editingShiftIdx]) ? dayVakter[editingShiftIdx] : {};
-        const initJobId   = shiftBeingEdited.jobId || profiles[0]?.id || '';
+        // Ny vakt starter på jobben som sist ble brukt, ikke alltid den
+        // første — det er valget man slipper å ta i de fleste tilfellene.
+        const sisteJobb   = loadSistJobb();
+        const initJobId   = shiftBeingEdited.jobId
+          || (profiles.some(p => p.id === sisteJobb) ? sisteJobb : profiles[0]?.id)
+          || '';
         const initJobSett = getJobbprofil(initJobId);
         panel.innerHTML = dayHeadHtml + `
           ${helligdager[editDate]?'':`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px;cursor:pointer"><input type="checkbox" id="vHellig" ${shiftBeingEdited.hellig?'checked':''}> Helligdag for jobben (${initJobSett.helligSats||133}% tillegg)</label>`}
           ${profiles.length > 1
-            ? `<div style="margin-bottom:10px"><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Jobb</label><select id="vJobId" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px;font-weight:600">${profiles.map(p=>`<option value="${p.id}"${initJobId===p.id?' selected':''}>${p.name}</option>`).join('')}</select></div>`
-            : `<input type="hidden" id="vJobId" value="${initJobId}">`}
+            ? `<div style="margin-bottom:10px"><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Jobb</label><div style="display:flex;gap:6px;flex-wrap:wrap">${profiles.map(p=>`<button type="button" class="sort-btn jobb-btn${initJobId===p.id?' sort-active':''}" data-id="${p.id}" style="font-size:13px;padding:6px 12px;font-weight:600">${p.name}</button>`).join('')}</div></div>`
+            : ''}
+          <input type="hidden" id="vJobId" value="${initJobId}">
           <div id="kodeBtnArea" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
             <div><label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Start</label>
@@ -841,9 +847,17 @@ function renderLonnskalkulator() {
         document.getElementById('vStart').addEventListener('input', updatePreview);
         document.getElementById('vSlutt').addEventListener('input', updatePreview);
         document.getElementById('vHellig')?.addEventListener('change', updatePreview);
-        document.getElementById('vJobId')?.addEventListener('change', e => {
-          renderKodeButtons(e.target.value, null);
-          updatePreview?.();
+        // Jobbvalget er knapper, ikke nedtrekksliste: ett trykk i stedet for
+        // åpne–sikte–velge. Verdien bor fortsatt i det skjulte feltet, så
+        // lagring og forhåndsvisning leser den på samme måte som før.
+        panel.querySelectorAll('.jobb-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.getElementById('vJobId').value = btn.dataset.id;
+            panel.querySelectorAll('.jobb-btn').forEach(b => b.classList.remove('sort-active'));
+            btn.classList.add('sort-active');
+            renderKodeButtons(btn.dataset.id, null);
+            updatePreview?.();
+          });
         });
         document.getElementById('saveVaktBtn').addEventListener('click', () => {
           const startV = document.getElementById('vStart').value;
@@ -854,6 +868,7 @@ function renderLonnskalkulator() {
           const activeKode = panel.querySelector('.kode-btn.sort-active');
           const helligChecked = document.getElementById('vHellig')?.checked || false;
           const selectedJobId = document.getElementById('vJobId')?.value || profiles[0]?.id;
+          saveSistJobb(selectedJobId);   // neste vakt starter på samme jobb
           const shift = { start: startV, end: endV, kode: activeKode?.dataset.kode || null, hellig: helligChecked || undefined, jobId: selectedJobId };
           if (editingShiftIdx != null && arr[editingShiftIdx]) arr[editingShiftIdx] = shift; else arr.push(shift);
           all[editDate] = arr;
