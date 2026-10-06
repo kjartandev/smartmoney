@@ -340,13 +340,13 @@ function renderLonnskalkulator() {
     const vakter  = loadVakter();
     const today  = new Date();
     const todayK = dkey(today.getFullYear(), today.getMonth(), today.getDate());
-    // Rutenettet spenner over lønnsperioden, ikke kalendermåneden. Med
-    // lonnFra = 1 er de to det samme, så et vanlig oppsett ser nøyaktig ut
-    // som før. calYear/calMonth er fortsatt ankeret: pilene flytter ankeret
-    // én måned, altså én periode.
-    const aktivJobb = profiles.find(p => p.id === periodeJobbId) || profiles[0];
-    const aktivPeriode = lonnPeriode(calYear, calMonth, aktivJobb?.lonnFra);
-    const erKalendermaaned = (parseInt(aktivJobb?.lonnFra) || 1) === 1;
+    // Rutenettet viser kalendermåneden som standard. periodeJobbId er et
+    // filter man slår på for å se alle vaktene i én lønnsperiode samlet —
+    // tallene i oppsummeringen regnes uansett per lønnsperiode, så filteret
+    // trengs ikke for å få riktig estimert brutto.
+    const filterJobb = periodeJobbId ? profiles.find(p => p.id === periodeJobbId) : null;
+    const erKalendermaaned = !filterJobb;
+    const aktivPeriode = lonnPeriode(calYear, calMonth, filterJobb ? filterJobb.lonnFra : 1);
     const periodeDager = [];
     for (let d = new Date(aktivPeriode.start); d <= aktivPeriode.slutt; d.setDate(d.getDate()+1)) {
       periodeDager.push(new Date(d));
@@ -579,31 +579,33 @@ function renderLonnskalkulator() {
       });
     });
 
-    // Nav — tittelen er månedsnavnet når perioden er kalendermåneden, og
-    // ellers datospennet, siden rutenettet da ikke lenger er én måned.
+    // Måneden står alltid i tittelen, også når periodefilteret er på — da
+    // som ankeret perioden hører til, med datospennet under.
+    const maanedTittel = `${monthsNo[calMonth].charAt(0).toUpperCase()+monthsNo[calMonth].slice(1)} ${calYear}`;
     const navTittel = erKalendermaaned
-      ? `${monthsNo[calMonth].charAt(0).toUpperCase()+monthsNo[calMonth].slice(1)} ${calYear}`
-      : periodeTekst(aktivPeriode);
+      ? maanedTittel
+      : `${maanedTittel}<span style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-top:1px">Lønnsperiode ${periodeTekst(aktivPeriode)}</span>`;
     const nav = document.createElement('div');
     nav.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px';
     nav.innerHTML = `<button class="sort-btn" id="calPrev" style="font-size:16px;padding:4px 12px">‹</button><span style="font-weight:700;font-size:14px;color:var(--text)">${navTittel}</span><button class="sort-btn" id="calNext" style="font-size:16px;padding:4px 12px">›</button>`;
     calWrap.appendChild(nav);
 
-    // ── Velg hvilken jobbs lønnsperiode rutenettet viser ──────────────
-    // Rutenettet kan bare spenne over ett datospenn. Har jobbene ulik
-    // lønnsperiode, må man derfor kunne velge hvilken som vises — ellers
-    // ville den andre jobbens vakter ligget utenfor det synlige spennet
-    // uten at noe fortalte hvorfor.
-    const unikePerioder = [...new Set(profiles.map(p => parseInt(p.lonnFra) || 1))];
-    if (unikePerioder.length > 1 && profiles.length) {
-      const valgt = aktivJobb;
+    // ── Filter: vis én lønnsperiode samlet ───────────────────────────
+    // Rent visuelt. Rutenettet kan bare spenne over ett datospenn, så en
+    // periode som starter midt i måneden må vises for seg — men det er et
+    // valg, ikke standardvisningen. Vises bare for jobber som faktisk
+    // avviker fra kalendermåneden; for de andre ville fliken gitt samme
+    // rutenett som «Kalendermåned» og bare vært støy.
+    const skjevePerioder = profiles.filter(p => (parseInt(p.lonnFra) || 1) !== 1);
+    if (skjevePerioder.length) {
       const stripe = document.createElement('div');
       stripe.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px;font-size:11px';
-      stripe.innerHTML = `<span style="color:var(--text-muted)">Viser perioden til</span>` +
-        profiles.map(p => `<button class="sort-btn periode-chip${p.id===valgt.id?' sort-active':''}" data-id="${p.id}" style="font-size:11px;padding:3px 9px">${p.name} · ${periodeTekst(lonnPeriode(calYear,calMonth,p.lonnFra))}</button>`).join('');
+      stripe.innerHTML = `<span style="color:var(--text-muted)">Vis</span>` +
+        `<button class="sort-btn periode-chip${!periodeJobbId?' sort-active':''}" data-id="" style="font-size:11px;padding:3px 9px">Kalendermåned</button>` +
+        skjevePerioder.map(p => `<button class="sort-btn periode-chip${p.id===periodeJobbId?' sort-active':''}" data-id="${p.id}" style="font-size:11px;padding:3px 9px">${p.name} · ${periodeTekst(lonnPeriode(calYear,calMonth,p.lonnFra))}</button>`).join('');
       calWrap.appendChild(stripe);
       stripe.querySelectorAll('.periode-chip').forEach(b =>
-        b.addEventListener('click', () => { periodeJobbId = b.dataset.id; renderCal(); }));
+        b.addEventListener('click', () => { periodeJobbId = b.dataset.id || null; renderCal(); }));
     }
 
     // Grid
