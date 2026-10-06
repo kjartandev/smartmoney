@@ -326,6 +326,9 @@ function renderLonnskalkulator() {
   // the list instead of closing the whole day, making it quick to add a second.
   let editingShiftIdx = null;
   let shiftFormOpen = false;
+  // Hvilken jobbs lønnsperiode som markeres i rutenettet. Bare i bruk når
+  // jobbene har ulik periode — én markering kan ikke gjelde for to.
+  let periodeJobbId = null;
   const DAG = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
   const DAGFULL = ['søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'];
 
@@ -572,6 +575,31 @@ function renderLonnskalkulator() {
     nav.innerHTML = `<button class="sort-btn" id="calPrev" style="font-size:16px;padding:4px 12px">‹</button><span style="font-weight:700;font-size:14px;color:var(--text)">${monthsNo[calMonth].charAt(0).toUpperCase()+monthsNo[calMonth].slice(1)} ${calYear}</span><button class="sort-btn" id="calNext" style="font-size:16px;padding:4px 12px">›</button>`;
     calWrap.appendChild(nav);
 
+    // ── Lønnsperiode-stripe ──────────────────────────────────────────
+    // Gjør det synlig i selve rutenettet hvilke dager som hører til samme
+    // utbetaling: dager utenfor perioden tones ned. Vises bare når noe
+    // avviker fra kalendermåneden — ellers er rutenettet allerede perioden.
+    // Har jobbene ulik periode, kan ikke én nedtoning gjelde for begge, så
+    // da velges hvilken som markeres; uten valget ville markeringen vært
+    // direkte feil for den andre jobben.
+    const unikePerioder = [...new Set(profiles.map(p => parseInt(p.lonnFra) || 1))];
+    let aktivPeriode = null;
+    if (!(unikePerioder.length === 1 && unikePerioder[0] === 1) && profiles.length) {
+      const valgt = profiles.find(p => p.id === periodeJobbId) || profiles[0];
+      periodeJobbId = valgt.id;
+      aktivPeriode = lonnPeriode(calYear, calMonth, valgt.lonnFra);
+      const stripe = document.createElement('div');
+      stripe.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px;font-size:11px';
+      stripe.innerHTML = `<span style="color:var(--text-muted)">Lønnsperiode</span>` + (
+        unikePerioder.length > 1
+          ? profiles.map(p => `<button class="sort-btn periode-chip${p.id===valgt.id?' sort-active':''}" data-id="${p.id}" style="font-size:11px;padding:3px 9px">${p.name} · ${periodeTekst(lonnPeriode(calYear,calMonth,p.lonnFra))}</button>`).join('')
+          : `<span style="font-weight:700;color:var(--text)">${periodeTekst(aktivPeriode)}</span>`
+      );
+      calWrap.appendChild(stripe);
+      stripe.querySelectorAll('.periode-chip').forEach(b =>
+        b.addEventListener('click', () => { periodeJobbId = b.dataset.id; renderCal(); }));
+    }
+
     // Grid
     const getWeekNum = date => {
       const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -619,7 +647,11 @@ function renderLonnskalkulator() {
       // total get crushed together — grid rows aren't a fixed height, so a
       // taller cell just makes that one week's row a bit taller.
       const cellMinH = dayVakter.length >= 2 ? 80 : 64;
-      cell.style.cssText = `border-radius:8px;padding:5px;min-height:${cellMinH}px;cursor:pointer;background:${cellBg};border:2px solid ${isEditing?'#7dd3fc':isToday?'#4caf50':isHellig?'rgba(255,193,7,0.4)':'transparent'};display:flex;flex-direction:column;align-items:center;`;
+      // Dager som hører til en annen utbetaling tones ned. Opacity brukes
+      // framfor egen bakgrunn, så helg-, helligdag- og dagens dato-markering
+      // beholdes uendret oppå.
+      const utenforPeriode = aktivPeriode && !iPeriode(dk2, aktivPeriode);
+      cell.style.cssText = `border-radius:8px;padding:5px;min-height:${cellMinH}px;cursor:pointer;background:${cellBg};border:2px solid ${isEditing?'#7dd3fc':isToday?'#4caf50':isHellig?'rgba(255,193,7,0.4)':'transparent'};display:flex;flex-direction:column;align-items:center;${utenforPeriode?'opacity:0.34;':''}`;
       const dn2 = document.createElement('div');
       dn2.style.cssText = `font-size:11px;font-weight:700;color:${isHellig?'#f5a623':isWeekend?'#e91e63':'var(--text-muted)'};width:100%;text-align:left`;
       dn2.textContent = d; cell.appendChild(dn2);
