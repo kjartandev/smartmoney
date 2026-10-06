@@ -340,8 +340,18 @@ function renderLonnskalkulator() {
     const vakter  = loadVakter();
     const today  = new Date();
     const todayK = dkey(today.getFullYear(), today.getMonth(), today.getDate());
-    const firstDow = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
-    const lastDay  = new Date(calYear, calMonth+1, 0).getDate();
+    // Rutenettet spenner over lønnsperioden, ikke kalendermåneden. Med
+    // lonnFra = 1 er de to det samme, så et vanlig oppsett ser nøyaktig ut
+    // som før. calYear/calMonth er fortsatt ankeret: pilene flytter ankeret
+    // én måned, altså én periode.
+    const aktivJobb = profiles.find(p => p.id === periodeJobbId) || profiles[0];
+    const aktivPeriode = lonnPeriode(calYear, calMonth, aktivJobb?.lonnFra);
+    const erKalendermaaned = (parseInt(aktivJobb?.lonnFra) || 1) === 1;
+    const periodeDager = [];
+    for (let d = new Date(aktivPeriode.start); d <= aktivPeriode.slutt; d.setDate(d.getDate()+1)) {
+      periodeDager.push(new Date(d));
+    }
+    const firstDow = (aktivPeriode.start.getDay() + 6) % 7;
     const helligdager = Object.assign({}, getNorskHelligdager(calYear), getNorskHelligdager(calYear+1));
 
     calWrap.innerHTML = '';
@@ -569,32 +579,28 @@ function renderLonnskalkulator() {
       });
     });
 
-    // Month nav
+    // Nav — tittelen er månedsnavnet når perioden er kalendermåneden, og
+    // ellers datospennet, siden rutenettet da ikke lenger er én måned.
+    const navTittel = erKalendermaaned
+      ? `${monthsNo[calMonth].charAt(0).toUpperCase()+monthsNo[calMonth].slice(1)} ${calYear}`
+      : periodeTekst(aktivPeriode);
     const nav = document.createElement('div');
     nav.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px';
-    nav.innerHTML = `<button class="sort-btn" id="calPrev" style="font-size:16px;padding:4px 12px">‹</button><span style="font-weight:700;font-size:14px;color:var(--text)">${monthsNo[calMonth].charAt(0).toUpperCase()+monthsNo[calMonth].slice(1)} ${calYear}</span><button class="sort-btn" id="calNext" style="font-size:16px;padding:4px 12px">›</button>`;
+    nav.innerHTML = `<button class="sort-btn" id="calPrev" style="font-size:16px;padding:4px 12px">‹</button><span style="font-weight:700;font-size:14px;color:var(--text)">${navTittel}</span><button class="sort-btn" id="calNext" style="font-size:16px;padding:4px 12px">›</button>`;
     calWrap.appendChild(nav);
 
-    // ── Lønnsperiode-stripe ──────────────────────────────────────────
-    // Gjør det synlig i selve rutenettet hvilke dager som hører til samme
-    // utbetaling: dager utenfor perioden tones ned. Vises bare når noe
-    // avviker fra kalendermåneden — ellers er rutenettet allerede perioden.
-    // Har jobbene ulik periode, kan ikke én nedtoning gjelde for begge, så
-    // da velges hvilken som markeres; uten valget ville markeringen vært
-    // direkte feil for den andre jobben.
+    // ── Velg hvilken jobbs lønnsperiode rutenettet viser ──────────────
+    // Rutenettet kan bare spenne over ett datospenn. Har jobbene ulik
+    // lønnsperiode, må man derfor kunne velge hvilken som vises — ellers
+    // ville den andre jobbens vakter ligget utenfor det synlige spennet
+    // uten at noe fortalte hvorfor.
     const unikePerioder = [...new Set(profiles.map(p => parseInt(p.lonnFra) || 1))];
-    let aktivPeriode = null;
-    if (!(unikePerioder.length === 1 && unikePerioder[0] === 1) && profiles.length) {
-      const valgt = profiles.find(p => p.id === periodeJobbId) || profiles[0];
-      periodeJobbId = valgt.id;
-      aktivPeriode = lonnPeriode(calYear, calMonth, valgt.lonnFra);
+    if (unikePerioder.length > 1 && profiles.length) {
+      const valgt = aktivJobb;
       const stripe = document.createElement('div');
       stripe.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px;font-size:11px';
-      stripe.innerHTML = `<span style="color:var(--text-muted)">Lønnsperiode</span>` + (
-        unikePerioder.length > 1
-          ? profiles.map(p => `<button class="sort-btn periode-chip${p.id===valgt.id?' sort-active':''}" data-id="${p.id}" style="font-size:11px;padding:3px 9px">${p.name} · ${periodeTekst(lonnPeriode(calYear,calMonth,p.lonnFra))}</button>`).join('')
-          : `<span style="font-weight:700;color:var(--text)">${periodeTekst(aktivPeriode)}</span>`
-      );
+      stripe.innerHTML = `<span style="color:var(--text-muted)">Viser perioden til</span>` +
+        profiles.map(p => `<button class="sort-btn periode-chip${p.id===valgt.id?' sort-active':''}" data-id="${p.id}" style="font-size:11px;padding:3px 9px">${p.name} · ${periodeTekst(lonnPeriode(calYear,calMonth,p.lonnFra))}</button>`).join('');
       calWrap.appendChild(stripe);
       stripe.querySelectorAll('.periode-chip').forEach(b =>
         b.addEventListener('click', () => { periodeJobbId = b.dataset.id; renderCal(); }));
@@ -620,20 +626,22 @@ function renderLonnskalkulator() {
       h.textContent = dn; grid.appendChild(h);
     });
     // Empty cells before first day + week number for first row
-    const firstWeekNum = getWeekNum(new Date(calYear, calMonth, 1));
+    const firstWeekNum = getWeekNum(aktivPeriode.start);
     const wn1 = document.createElement('div');
     wn1.style.cssText = 'font-size:9px;font-weight:700;color:var(--text-muted);text-align:center;padding:3px 0;align-self:start;margin-top:2px';
     wn1.textContent = firstWeekNum; grid.appendChild(wn1);
     for (let i=0; i<firstDow; i++) grid.appendChild(document.createElement('div'));
     let lastWeekShown = firstWeekNum;
-    for (let d=1; d<=lastDay; d++) {
-      const dk2 = dkey(calYear, calMonth, d);
-      const dow = (firstDow+d-1)%7;
+    for (let i=0; i<periodeDager.length; i++) {
+      const dato = periodeDager[i];
+      const d = dato.getDate();
+      const dk2 = dkey(dato.getFullYear(), dato.getMonth(), d);
+      const dow = (firstDow+i)%7;
       // Insert week number at start of each new row (Monday)
-      if (dow === 0 && d > 1) {
+      if (dow === 0 && i > 0) {
         const wn = document.createElement('div');
         wn.style.cssText = 'font-size:9px;font-weight:700;color:var(--text-muted);text-align:center;padding:3px 0;align-self:start;margin-top:2px';
-        const wNum = getWeekNum(new Date(calYear, calMonth, d));
+        const wNum = getWeekNum(dato);
         wn.textContent = wNum; grid.appendChild(wn);
         lastWeekShown = wNum;
       }
@@ -647,14 +655,15 @@ function renderLonnskalkulator() {
       // total get crushed together — grid rows aren't a fixed height, so a
       // taller cell just makes that one week's row a bit taller.
       const cellMinH = dayVakter.length >= 2 ? 80 : 64;
-      // Dager som hører til en annen utbetaling tones ned. Opacity brukes
-      // framfor egen bakgrunn, så helg-, helligdag- og dagens dato-markering
-      // beholdes uendret oppå.
-      const utenforPeriode = aktivPeriode && !iPeriode(dk2, aktivPeriode);
-      cell.style.cssText = `border-radius:8px;padding:5px;min-height:${cellMinH}px;cursor:pointer;background:${cellBg};border:2px solid ${isEditing?'#7dd3fc':isToday?'#4caf50':isHellig?'rgba(255,193,7,0.4)':'transparent'};display:flex;flex-direction:column;align-items:center;${utenforPeriode?'opacity:0.34;':''}`;
+      cell.style.cssText = `border-radius:8px;padding:5px;min-height:${cellMinH}px;cursor:pointer;background:${cellBg};border:2px solid ${isEditing?'#7dd3fc':isToday?'#4caf50':isHellig?'rgba(255,193,7,0.4)':'transparent'};display:flex;flex-direction:column;align-items:center;`;
       const dn2 = document.createElement('div');
       dn2.style.cssText = `font-size:11px;font-weight:700;color:${isHellig?'#f5a623':isWeekend?'#e91e63':'var(--text-muted)'};width:100%;text-align:left`;
-      dn2.textContent = d; cell.appendChild(dn2);
+      // Går perioden over et månedsskifte, ville «31» etterfulgt av «1» vært
+      // tvetydig. Første dag i en ny måned får derfor månedsnavnet med seg.
+      dn2.textContent = (d === 1 && !erKalendermaaned)
+        ? `1. ${monthsShort[dato.getMonth()].toLowerCase()}`
+        : d;
+      cell.appendChild(dn2);
       if (isHellig) {
         const hf = document.createElement('div');
         hf.title = helligdager[dk2];
