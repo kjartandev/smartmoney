@@ -153,6 +153,40 @@ function iPeriode(dk, p) {
   return dk >= n(p.start) && dk <= n(p.slutt);
 }
 
+// ── Utbetalingsdag ──────────────────────────────────────────────
+// Banker behandler ikke overføringer i helgen, så en utbetaling som skulle
+// kommet på en lørdag eller søndag, kommer fredagen før i stedet.
+function justerHelgTilFredag(dato) {
+  const d = new Date(dato);
+  const dag = d.getDay();   // 0 = søndag, 6 = lørdag
+  if (dag === 6) d.setDate(d.getDate() - 1);
+  else if (dag === 0) d.setDate(d.getDate() - 2);
+  return d;
+}
+// Utbetalingsdagen kan avvike fra dagen perioden starter på (en bedrift kan
+// f.eks. behandle lønn noen dager etter periodeskiftet). Mangler feltet,
+// brukes samme dag som lonnFra — det vanligste, og det treffer uten at
+// noen må fylle inn et eget tall.
+function utbetalingsdato(aar, maaned, prof) {
+  const dag = Math.min(Math.max(parseInt(prof.utbetalingsdag ?? prof.lonnFra) || 1, 1), 28);
+  return justerHelgTilFredag(new Date(aar, maaned, dag));
+}
+// Perioden som betales ut på en gitt utbetalingsdato: den som startet
+// kalendermåneden før. Periodene ligger etter hverandre uten hull — denne
+// månedens periode begynner nøyaktig der forrige sluttet — så «forrige
+// periode» er alltid den som akkurat er avsluttet og nå betales ut.
+function utbetaltPeriode(aar, maaned, prof) {
+  return lonnPeriode(aar, maaned - 1, prof.lonnFra);
+}
+// Hvilken av jobbens to perioder en gitt dato hører til: den som starter i
+// datoens egen kalendermåned, eller den som sluttet der. Disse to periodene
+// dekker til sammen hver eneste dag i den måneden uten hull og uten
+// overlapp, så svaret finnes alltid i nøyaktig én av dem.
+function dagTilhoererJobbPeriode(dk, dato, prof) {
+  return iPeriode(dk, lonnPeriode(dato.getFullYear(), dato.getMonth(), prof.lonnFra))
+      || iPeriode(dk, lonnPeriode(dato.getFullYear(), dato.getMonth() - 1, prof.lonnFra));
+}
+
 // Single source of truth: a shift counts as helligdag if it's on the official
 // Norwegian holiday calendar OR the user manually flagged it on the vakt itself.
 function isVaktHelligdag(dk, vakt, helligdager) {

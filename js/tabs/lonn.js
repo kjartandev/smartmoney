@@ -437,6 +437,17 @@ function renderLonnskalkulator() {
               <span style="font-size:11px;color:var(--text-muted)">i måneden. 1 = vanlig kalendermåned.</span>
             </div>
           </div>
+          <div style="margin-bottom:10px">
+            <label style="color:var(--text-muted);display:block;margin-bottom:2px;font-size:12px">Lønn kommer på konto den</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="pUtbetalingsdag_${p.id}" type="number" min="1" max="28" value="${p.utbetalingsdag||p.lonnFra||1}" style="${iSt};width:60px">
+              <span style="font-size:11px;color:var(--text-muted)">i måneden. Lander det på lørdag/søndag, flyttes det til fredagen før.</span>
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="color:var(--text-muted);display:block;margin-bottom:4px;font-size:12px">Farge i kalenderen</label>
+            <input id="pFarge_${p.id}" type="color" value="${p.farge || BUCKET_COLORS[profs.findIndex(x=>x.id===p.id) % BUCKET_COLORS.length]}" style="width:44px;height:30px;padding:2px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer">
+          </div>
           <div style="display:flex;gap:6px;margin-bottom:12px">
             <button class="sort-btn sort-active save-profil-btn" data-id="${p.id}" style="font-size:11px">Lagre</button>
             <button class="sort-btn cancel-profil-btn" data-id="${p.id}" style="font-size:11px">Avbryt</button>
@@ -489,8 +500,10 @@ function renderLonnskalkulator() {
             nattSats:   parseFloat(document.getElementById('pNattSats_'+id).value) || 0,
             helgSats:   parseFloat(document.getElementById('pHelgSats_'+id).value) || 0,
             helligSats: parseFloat(document.getElementById('pHelligSats_'+id).value) || 133,
-            helgLordag: document.getElementById('pHelgLordag_'+id).checked,
-            lonnFra:    Math.min(Math.max(parseInt(document.getElementById('pLonnFra_'+id).value) || 1, 1), 28),
+            helgLordag:      document.getElementById('pHelgLordag_'+id).checked,
+            lonnFra:         Math.min(Math.max(parseInt(document.getElementById('pLonnFra_'+id).value) || 1, 1), 28),
+            utbetalingsdag:  Math.min(Math.max(parseInt(document.getElementById('pUtbetalingsdag_'+id).value) || 1, 1), 28),
+            farge:           document.getElementById('pFarge_'+id).value,
             updatedAt:  new Date().toISOString(),
           };
           saveJobbprofiler(all);
@@ -547,6 +560,17 @@ function renderLonnskalkulator() {
               <span style="font-size:11px;color:var(--text-muted)">i måneden. 1 = vanlig kalendermåned.</span>
             </div>
           </div>
+          <div style="margin-bottom:8px">
+            <label style="color:var(--text-muted);display:block;margin-bottom:2px">Lønn kommer på konto den</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="nJobUtbetalingsdag" type="number" min="1" max="28" placeholder="samme" style="${iSt};width:60px">
+              <span style="font-size:11px;color:var(--text-muted)">i måneden. Tom = samme dag som lønnsperioden starter.</span>
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="color:var(--text-muted);display:block;margin-bottom:4px">Farge i kalenderen</label>
+            <input id="nJobFarge" type="color" value="${BUCKET_COLORS[profiles.length % BUCKET_COLORS.length]}" style="width:44px;height:30px;padding:2px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer">
+          </div>
           <div style="display:flex;gap:6px">
             <button class="sort-btn sort-active" id="saveNyJobBtn" style="font-size:11px">Opprett</button>
             <button class="sort-btn" id="cancelNyJobBtn" style="font-size:11px">Avbryt</button>
@@ -568,8 +592,14 @@ function renderLonnskalkulator() {
           nattSats:   parseFloat(document.getElementById('nJobNattSats').value) || 0,
           helgSats:   parseFloat(document.getElementById('nJobHelgSats').value) || 0,
           helligSats: parseFloat(document.getElementById('nJobHelligSats').value) || 133,
-          helgLordag: document.getElementById('nJobHelgLordag').checked,
-          lonnFra:    Math.min(Math.max(parseInt(document.getElementById('nJobLonnFra').value) || 1, 1), 28),
+          helgLordag:      document.getElementById('nJobHelgLordag').checked,
+          lonnFra:         Math.min(Math.max(parseInt(document.getElementById('nJobLonnFra').value) || 1, 1), 28),
+          // Blank utbetalingsdag lagres ikke — getJobbprofil-brukerne leser da
+          // lonnFra som fallback, så «samme dag» faktisk stemmer uten et tall.
+          ...(document.getElementById('nJobUtbetalingsdag').value.trim()
+            ? { utbetalingsdag: Math.min(Math.max(parseInt(document.getElementById('nJobUtbetalingsdag').value) || 1, 1), 28) }
+            : {}),
+          farge:      document.getElementById('nJobFarge').value,
           createdAt:  new Date().toISOString(),
         });
         saveJobbprofiler(profs);
@@ -634,6 +664,36 @@ function renderLonnskalkulator() {
     wn1.textContent = firstWeekNum; grid.appendChild(wn1);
     for (let i=0; i<firstDow; i++) grid.appendChild(document.createElement('div'));
     let lastWeekShown = firstWeekNum;
+
+    // ── Utbetalingsdager synlig i rutenettet ──────────────────────────
+    // Finn utbetalingsdatoen (helgejustert) for hver jobb i hver måned
+    // rutenettet dekker, og beløpet for perioden den betaler ut. Bare med to
+    // eller flere jobber — med én jobb er det ingen tvetydighet å avklare.
+    const utbetalingerPaaDag = {}; // dk -> [{ prof, belop }]
+    if (profiles.length > 1) {
+      const maaneder = new Set(periodeDager.map(d => d.getFullYear()+'-'+d.getMonth()));
+      profiles.forEach(prof => {
+        maaneder.forEach(key => {
+          const [aa, mm] = key.split('-').map(Number);
+          const bDato = utbetalingsdato(aa, mm, prof);
+          const bdk = dkey(bDato.getFullYear(), bDato.getMonth(), bDato.getDate());
+          const synlig = periodeDager.some(d => dkey(d.getFullYear(),d.getMonth(),d.getDate())===bdk);
+          if (!synlig) return;
+          const periode = utbetaltPeriode(aa, mm, prof);
+          let belop = 0;
+          Object.entries(vakter).forEach(([vdk, arr]) => {
+            if (!iPeriode(vdk, periode)) return;
+            (arr||[]).forEach(v => {
+              if (getJobbprofil(v.jobId).id !== prof.id) return;
+              belop += calcVaktPay(v, prof, vdk, isVaktHelligdag(vdk, v, helligdager)).pay;
+            });
+          });
+          // 0 kr betyr at hun ikke jobbet noe i perioden — et merke for det
+          // ville bare vært en tom boks midt i kalenderen uten informasjon.
+          if (belop > 0) (utbetalingerPaaDag[bdk] = utbetalingerPaaDag[bdk] || []).push({ prof, belop });
+        });
+      });
+    }
     for (let i=0; i<periodeDager.length; i++) {
       const dato = periodeDager[i];
       const d = dato.getDate();
@@ -656,7 +716,10 @@ function renderLonnskalkulator() {
       // A second shift needs more room for its own time row, or it and the
       // total get crushed together — grid rows aren't a fixed height, so a
       // taller cell just makes that one week's row a bit taller.
-      const cellMinH = dayVakter.length >= 2 ? 80 : 64;
+      // Et utbetalingsmerke legger til en egen rad, så cellen trenger litt
+      // mer plass den dagen — uavhengig av om det også ligger en vakt der.
+      const harUtbetaling = (utbetalingerPaaDag[dk2] || []).length > 0;
+      const cellMinH = (dayVakter.length >= 2 ? 80 : 64) + (harUtbetaling ? 16 : 0);
       cell.style.cssText = `border-radius:8px;padding:5px;min-height:${cellMinH}px;cursor:pointer;background:${cellBg};border:2px solid ${isEditing?'#7dd3fc':isToday?'#4caf50':isHellig?'rgba(255,193,7,0.4)':'transparent'};display:flex;flex-direction:column;align-items:center;`;
       const dn2 = document.createElement('div');
       dn2.style.cssText = `font-size:11px;font-weight:700;color:${isHellig?'#f5a623':isWeekend?'#e91e63':'var(--text-muted)'};width:100%;text-align:left`;
@@ -666,6 +729,36 @@ function renderLonnskalkulator() {
         ? `1. ${monthsShort[dato.getMonth()].toLowerCase()}`
         : d;
       cell.appendChild(dn2);
+      // Fargeprikk per jobb hvis dagen hører til jobbens lønnsperiode — bare
+      // med flere jobber, siden det ikke er noe å skille mellom med én.
+      if (profiles.length > 1) {
+        const relevanteJobber = profiles.filter(prof => dagTilhoererJobbPeriode(dk2, dato, prof));
+        if (relevanteJobber.length) {
+          const prikker = document.createElement('div');
+          prikker.style.cssText = 'display:flex;gap:2px;width:100%;margin-top:2px';
+          relevanteJobber.forEach(prof => {
+            const d2 = document.createElement('div');
+            d2.title = prof.name;
+            d2.style.cssText = `width:5px;height:5px;border-radius:50%;background:${prof.farge || '#9aab90'}`;
+            prikker.appendChild(d2);
+          });
+          cell.appendChild(prikker);
+        }
+      }
+      // Utbetalingsmerke: denne dagen er (helgejustert) lønningsdag for én
+      // eller flere jobber. Vises uansett om det også ligger en vakt her.
+      const utbetalinger = utbetalingerPaaDag[dk2];
+      if (utbetalinger && utbetalinger.length) {
+        utbetalinger.forEach(({ prof, belop }) => {
+          const b = document.createElement('div');
+          b.title = `${prof.name}: lønn for perioden som akkurat er avsluttet`;
+          b.style.cssText = `display:flex;align-items:center;gap:3px;width:100%;margin-top:3px;padding:2px 4px;border-radius:5px;background:${prof.farge || '#9aab90'}22;color:${prof.farge || 'var(--text)'}`;
+          // 'income' er nøkkelen i ICON_MAP som peker til wallet-ikonet —
+          // icon() slår opp på dette navnet, ikke på selve SVG-stien.
+          b.innerHTML = `${icon('income',{size:9})}<span style="font-size:8px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${Math.round(belop).toLocaleString('nb-NO')} kr</span>`;
+          cell.appendChild(b);
+        });
+      }
       if (isHellig) {
         const hf = document.createElement('div');
         hf.title = helligdager[dk2];
@@ -958,8 +1051,7 @@ function renderLonnskalkulator() {
         // og det stemmer ikke. Hvert beløp får derfor sin egen linje med
         // beløpet i fokus, og totalen ligger dempet nederst.
         sum.innerHTML = `
-          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">Estimert lønn</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Én utbetaling per jobb · periodene som starter i ${maanedNavn.toLowerCase()}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">Estimert lønn</div>
           ${perJobb.map(x => `
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--border-light)">
               <div style="min-width:0">
