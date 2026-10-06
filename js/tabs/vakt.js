@@ -120,6 +120,32 @@ function saveJobbKoder(jobId, koder) {
   saveJobbprofiler(all);
 }
 
+// ── Lønnsperiode ────────────────────────────────────────────────
+// Jobber betaler ikke nødvendigvis for kalendermåneden. Går lønnsperioden
+// f.eks. fra den 20., hører vaktene 20.09–19.10 til samme utbetaling.
+// Perioden ligger på jobbprofilen, ikke globalt, fordi to jobber kan ha
+// hver sin — og hver vakt peker allerede på én jobb.
+//
+// lonnFra = 1 gir nøyaktig kalendermåneden: start blir den 1., og slutt blir
+// dag 0 i neste måned, som er den siste dagen i denne. Derfor oppfører en
+// profil uten innstillingen seg akkurat som før.
+function lonnPeriode(aar, maaned, lonnFra) {
+  const fra = Math.min(Math.max(parseInt(lonnFra) || 1, 1), 28);
+  return {
+    start: new Date(aar, maaned, fra),
+    slutt: new Date(aar, maaned + 1, fra - 1)
+  };
+}
+function periodeTekst(p) {
+  const d = x => `${String(x.getDate()).padStart(2,'0')}.${String(x.getMonth()+1).padStart(2,'0')}`;
+  return `${d(p.start)} – ${d(p.slutt)}`;
+}
+// Datonøkkelen er 'YYYY-MM-DD', så en ren strengsammenligning holder.
+function iPeriode(dk, p) {
+  const n = x => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  return dk >= n(p.start) && dk <= n(p.slutt);
+}
+
 // Single source of truth: a shift counts as helligdag if it's on the official
 // Norwegian holiday calendar OR the user manually flagged it on the vakt itself.
 function isVaktHelligdag(dk, vakt, helligdager) {
@@ -127,12 +153,18 @@ function isVaktHelligdag(dk, vakt, helligdager) {
 }
 
 function calcVaktPay(vakt, sett, dk, isHelligdag=false) {
-  const toMin = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
-  let s=toMin(vakt.start), e=toMin(vakt.end);
+  // Reservetid: mangler et klokkeslett på profilen, kastet dette før en
+  // TypeError som boblet helt opp og etterlot hele Lønn-fanen tom. Verdiene
+  // er de samme standardene som skjemaet for ny jobb fyller inn.
+  const toMin = (t, reserve) => {
+    const [h,m] = String(t || reserve).split(':').map(Number);
+    return (h||0)*60 + (m||0);
+  };
+  let s=toMin(vakt.start,'00:00'), e=toMin(vakt.end,'00:00');
   if(e<=s) e+=1440;
   const workMin=Math.max(0,e-s);
   if(workMin<=0) return {hours:0,pay:0,eveningH:0,nightH:0,helgH:0,helligH:0};
-  const kF=toMin(sett.kveldFra), nF=toMin(sett.nattFra), nT=toMin(sett.nattTil);
+  const kF=toMin(sett.kveldFra,'17:00'), nF=toMin(sett.nattFra,'21:00'), nT=toMin(sett.nattTil,'06:00');
   const ov=(a,b,x,y)=>Math.max(0,Math.min(b,y)-Math.max(a,x));
   const e2=s+workMin, d1e=Math.min(e2,1440);
   let eveMin=ov(s,d1e,kF,nF), nightMin=ov(s,d1e,nF,1440)+ov(s,d1e,0,nT);

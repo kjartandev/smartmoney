@@ -340,7 +340,6 @@ function renderLonnskalkulator() {
     const firstDow = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
     const lastDay  = new Date(calYear, calMonth+1, 0).getDate();
     const helligdager = Object.assign({}, getNorskHelligdager(calYear), getNorskHelligdager(calYear+1));
-    const monthPfx = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
 
     calWrap.innerHTML = '';
 
@@ -397,7 +396,7 @@ function renderLonnskalkulator() {
         head.innerHTML = `
           <div style="font-size:12px">
             <span style="font-weight:600">${p.name}</span>
-            <span style="color:var(--text-muted);margin-left:6px">${p.timepris} kr/t${p.kveldSats?` · kveld +${p.kveldSats}`:''}${p.nattSats?` · natt +${p.nattSats}`:''}${p.helgLordag===false?' · lør uten helgetillegg':''}</span>
+            <span style="color:var(--text-muted);margin-left:6px">${p.timepris} kr/t${p.kveldSats?` · kveld +${p.kveldSats}`:''}${p.nattSats?` · natt +${p.nattSats}`:''}${p.helgLordag===false?' · lør uten helgetillegg':''}${p.lonnFra>1?` · lønn fra den ${p.lonnFra}.`:''}</span>
           </div>
           <div style="display:flex;gap:4px">
             <button class="sort-btn edit-profil-btn" data-id="${p.id}" style="font-size:10px;padding:2px 7px">Rediger</button>
@@ -417,6 +416,13 @@ function renderLonnskalkulator() {
           </div>
           <div style="margin-bottom:10px">
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="pHelgLordag_${p.id}" ${p.helgLordag===false?'':'checked'}> Helgetillegg gjelder lørdag</label>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="color:var(--text-muted);display:block;margin-bottom:2px;font-size:12px">Lønnsperioden starter den</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="pLonnFra_${p.id}" type="number" min="1" max="28" value="${p.lonnFra||1}" style="${iSt};width:60px">
+              <span style="font-size:11px;color:var(--text-muted)">i måneden. 1 = vanlig kalendermåned.</span>
+            </div>
           </div>
           <div style="display:flex;gap:6px;margin-bottom:12px">
             <button class="sort-btn sort-active save-profil-btn" data-id="${p.id}" style="font-size:11px">Lagre</button>
@@ -471,6 +477,7 @@ function renderLonnskalkulator() {
             helgSats:   parseFloat(document.getElementById('pHelgSats_'+id).value) || 0,
             helligSats: parseFloat(document.getElementById('pHelligSats_'+id).value) || 133,
             helgLordag: document.getElementById('pHelgLordag_'+id).checked,
+            lonnFra:    Math.min(Math.max(parseInt(document.getElementById('pLonnFra_'+id).value) || 1, 1), 28),
             updatedAt:  new Date().toISOString(),
           };
           saveJobbprofiler(all);
@@ -520,6 +527,13 @@ function renderLonnskalkulator() {
           <div style="margin-bottom:8px">
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="nJobHelgLordag" checked> Helgetillegg gjelder lørdag</label>
           </div>
+          <div style="margin-bottom:8px">
+            <label style="color:var(--text-muted);display:block;margin-bottom:2px">Lønnsperioden starter den</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="nJobLonnFra" type="number" min="1" max="28" value="1" style="${iSt};width:60px">
+              <span style="font-size:11px;color:var(--text-muted)">i måneden. 1 = vanlig kalendermåned.</span>
+            </div>
+          </div>
           <div style="display:flex;gap:6px">
             <button class="sort-btn sort-active" id="saveNyJobBtn" style="font-size:11px">Opprett</button>
             <button class="sort-btn" id="cancelNyJobBtn" style="font-size:11px">Avbryt</button>
@@ -542,6 +556,7 @@ function renderLonnskalkulator() {
           helgSats:   parseFloat(document.getElementById('nJobHelgSats').value) || 0,
           helligSats: parseFloat(document.getElementById('nJobHelligSats').value) || 133,
           helgLordag: document.getElementById('nJobHelgLordag').checked,
+          lonnFra:    Math.min(Math.max(parseInt(document.getElementById('nJobLonnFra').value) || 1, 1), 28),
           createdAt:  new Date().toISOString(),
         });
         saveJobbprofiler(profs);
@@ -827,39 +842,55 @@ function renderLonnskalkulator() {
       }
     }
 
-    // Monthly summary — flatten each day's shift array into one (date, shift)
-    // list first, so a double-shift day counts as two vakter here, same as
-    // it would if worked on two separate days.
-    const monthVakter = [];
-    Object.entries(vakter).filter(([k]) => k.startsWith(monthPfx)).forEach(([k, arr]) => {
-      (arr || []).forEach(v => monthVakter.push([k, v]));
-    });
-    if (monthVakter.length > 0) {
-      let tH = 0, tP = 0;
-      const byJob = {};
-      for (const [k, v] of monthVakter) {
-        const jobSett = getJobbprofil(v.jobId);
-        const r = calcVaktPay(v, jobSett, k, isVaktHelligdag(k, v, helligdager));
-        tH += r.hours; tP += r.pay;
-        const jid = v.jobId || profiles[0]?.id || 'default';
-        if (!byJob[jid]) byJob[jid] = { name: jobSett.name || 'Jobb', hours: 0, pay: 0, count: 0 };
-        byJob[jid].hours += r.hours; byJob[jid].pay += r.pay; byJob[jid].count++;
-      }
-      const jobKeys = Object.keys(byJob);
-      const perJobHtml = jobKeys.length > 1
+    // ── Oppsummering per lønnsperiode ────────────────────────────────
+    // Perioden kan starte midt i måneden (lonnFra), så vaktene som hører til
+    // samme utbetaling kan ligge i to kalendermåneder. Derfor gås hele
+    // vakt-settet gjennom, ikke bare den viste måneden. Hver jobb har sin
+    // egen periode, så to jobber med ulik lønnsperiode summeres hver for seg
+    // — det er nettopp derfor perioden ligger på jobbprofilen og ikke globalt.
+    const perJobb = profiles.map(prof => {
+      const per = lonnPeriode(calYear, calMonth, prof.lonnFra);
+      let timer = 0, lonn = 0, antall = 0;
+      Object.entries(vakter).forEach(([dk, arr]) => {
+        if (!iPeriode(dk, per)) return;
+        (arr || []).forEach(v => {
+          if (getJobbprofil(v.jobId).id !== prof.id) return;
+          const r = calcVaktPay(v, prof, dk, isVaktHelligdag(dk, v, helligdager));
+          timer += r.hours; lonn += r.pay; antall++;
+        });
+      });
+      return { prof, per, timer, lonn, antall };
+    }).filter(x => x.antall > 0);
+
+    if (perJobb.length > 0) {
+      const tH = perJobb.reduce((s, x) => s + x.timer, 0);
+      const tP = perJobb.reduce((s, x) => s + x.lonn, 0);
+      const antVakter = perJobb.reduce((s, x) => s + x.antall, 0);
+      const maanedNavn = monthsNo[calMonth].charAt(0).toUpperCase() + monthsNo[calMonth].slice(1);
+      const periodeSett = [...new Set(profiles.map(p => parseInt(p.lonnFra) || 1))];
+      // Med ren kalendermåned beholdes den opprinnelige tittelen uendret.
+      const tittel = periodeSett.length > 1
+        ? `Lønnsperioder som starter i ${maanedNavn.toLowerCase()}`
+        : periodeSett[0] === 1
+          ? `${maanedNavn} — oppsummering`
+          : `Lønnsperiode ${periodeTekst(perJobb[0].per)}`;
+      // Datoene vises per jobb så snart noe avviker fra kalendermåneden,
+      // ellers er det ikke mulig å se hvilken utbetaling tallene gjelder.
+      const visDatoer = periodeSett.length > 1 || periodeSett[0] !== 1;
+      const perJobHtml = (perJobb.length > 1 || visDatoer)
         ? `<div style="margin-top:10px;border-top:1px solid var(--border-light);padding-top:10px">
             <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px">Per jobb</div>
-            ${jobKeys.map(jid=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:12px"><span>${byJob[jid].name} <span style="color:var(--text-muted)">(${byJob[jid].count} vakter · ${byJob[jid].hours.toFixed(1)} t)</span></span><span style="font-weight:700;color:#4caf50">${Math.round(byJob[jid].pay).toLocaleString('nb-NO')} kr</span></div>`).join('')}
+            ${perJobb.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:12px"><span>${x.prof.name}${visDatoer?` <span style="color:var(--text-muted)">${periodeTekst(x.per)}</span>`:''} <span style="color:var(--text-muted)">(${x.antall} vakter · ${x.timer.toFixed(1)} t)</span></span><span style="font-weight:700;color:#4caf50">${Math.round(x.lonn).toLocaleString('nb-NO')} kr</span></div>`).join('')}
            </div>`
         : '';
       const sum = document.createElement('div');
       sum.className = 'card';
       sum.innerHTML = `
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">${monthsNo[calMonth].charAt(0).toUpperCase()+monthsNo[calMonth].slice(1)} — oppsummering</div>
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">${tittel}</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
           <div style="background:var(--chip-bg);border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Vakter</div>
-            <div style="font-weight:700;font-size:18px">${monthVakter.length}</div>
+            <div style="font-weight:700;font-size:18px">${antVakter}</div>
           </div>
           <div style="background:var(--chip-bg);border-radius:8px;padding:10px;text-align:center">
             <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Timer</div>
