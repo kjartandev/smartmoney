@@ -925,41 +925,54 @@ function renderLonnskalkulator() {
       const tP = perJobb.reduce((s, x) => s + x.lonn, 0);
       const antVakter = perJobb.reduce((s, x) => s + x.antall, 0);
       const maanedNavn = monthsNo[calMonth].charAt(0).toUpperCase() + monthsNo[calMonth].slice(1);
-      const periodeSett = [...new Set(profiles.map(p => parseInt(p.lonnFra) || 1))];
-      // Med ren kalendermåned beholdes den opprinnelige tittelen uendret.
-      const tittel = periodeSett.length > 1
-        ? `Lønnsperioder som starter i ${maanedNavn.toLowerCase()}`
-        : periodeSett[0] === 1
-          ? `${maanedNavn} — oppsummering`
-          : `Lønnsperiode ${periodeTekst(perJobb[0].per)}`;
-      // Datoene vises per jobb så snart noe avviker fra kalendermåneden,
-      // ellers er det ikke mulig å se hvilken utbetaling tallene gjelder.
-      const visDatoer = periodeSett.length > 1 || periodeSett[0] !== 1;
-      const perJobHtml = (perJobb.length > 1 || visDatoer)
-        ? `<div style="margin-top:10px;border-top:1px solid var(--border-light);padding-top:10px">
-            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px">Per jobb</div>
-            ${perJobb.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:12px"><span>${x.prof.name}${visDatoer?` <span style="color:var(--text-muted)">${periodeTekst(x.per)}</span>`:''} <span style="color:var(--text-muted)">(${x.antall} vakter · ${x.timer.toFixed(1)} t)</span></span><span style="font-weight:700;color:#4caf50">${Math.round(x.lonn).toLocaleString('nb-NO')} kr</span></div>`).join('')}
-           </div>`
-        : '';
+      const kr = v => Math.round(v).toLocaleString('nb-NO') + ' kr';
       const sum = document.createElement('div');
       sum.className = 'card';
-      sum.innerHTML = `
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">${tittel}</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
-          <div style="background:var(--chip-bg);border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Vakter</div>
-            <div style="font-weight:700;font-size:18px">${antVakter}</div>
-          </div>
-          <div style="background:var(--chip-bg);border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Timer</div>
-            <div style="font-weight:700;font-size:18px">${tH.toFixed(1)} t</div>
-          </div>
-          <div style="background:rgba(76,175,80,0.08);border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Estimert brutto</div>
-            <div style="font-weight:700;font-size:18px;color:#4caf50">${Math.round(tP).toLocaleString('nb-NO')} kr</div>
-          </div>
-        </div>
-        ${perJobHtml}`;
+
+      if (perJobb.length === 1) {
+        // Én jobb er én lønnsslipp, og de tre rutene er nettopp den slippen.
+        const x = perJobb[0];
+        const tittel = (parseInt(x.prof.lonnFra) || 1) === 1
+          ? `${maanedNavn} — oppsummering`
+          : `Lønnsperiode ${periodeTekst(x.per)}`;
+        sum.innerHTML = `
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">${tittel}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+            <div style="background:var(--chip-bg);border-radius:8px;padding:10px;text-align:center">
+              <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Vakter</div>
+              <div style="font-weight:700;font-size:18px">${x.antall}</div>
+            </div>
+            <div style="background:var(--chip-bg);border-radius:8px;padding:10px;text-align:center">
+              <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Timer</div>
+              <div style="font-weight:700;font-size:18px">${x.timer.toFixed(1)} t</div>
+            </div>
+            <div style="background:rgba(76,175,80,0.08);border-radius:8px;padding:10px;text-align:center">
+              <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Estimert brutto</div>
+              <div style="font-weight:700;font-size:18px;color:#4caf50">${kr(x.lonn)}</div>
+            </div>
+          </div>`;
+      } else {
+        // Hver jobb er sin egen lønnsslipp, med egen periode og egen
+        // utbetaling. Summen av dem er ikke noe man får på konto, så den kan
+        // ikke være det største tallet — da leser man den som «dette får jeg»,
+        // og det stemmer ikke. Hvert beløp får derfor sin egen linje med
+        // beløpet i fokus, og totalen ligger dempet nederst.
+        sum.innerHTML = `
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">Estimert lønn</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Én utbetaling per jobb · periodene som starter i ${maanedNavn.toLowerCase()}</div>
+          ${perJobb.map(x => `
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--border-light)">
+              <div style="min-width:0">
+                <div style="font-weight:700;font-size:14px;color:var(--text)">${x.prof.name}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${periodeTekst(x.per)} · ${x.antall} vakter · ${x.timer.toFixed(1)} t</div>
+              </div>
+              <div style="font-weight:700;font-size:20px;color:#4caf50;white-space:nowrap">${kr(x.lonn)}</div>
+            </div>`).join('')}
+          <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:9px;margin-top:2px;font-size:12px;color:var(--text-muted)">
+            <span>Til sammen · ${antVakter} vakter · ${tH.toFixed(1)} t</span>
+            <span style="font-weight:600">${kr(tP)}</span>
+          </div>`;
+      }
       calWrap.appendChild(sum);
     }
 
