@@ -683,17 +683,18 @@ function renderLonnskalkulator() {
           const synlig = periodeDager.some(d => dkey(d.getFullYear(),d.getMonth(),d.getDate())===bdk);
           if (!synlig) return;
           const periode = utbetaltPeriode(aa, mm, prof);
-          let belop = 0;
+          let belop = 0, antall = 0;
           Object.entries(vakter).forEach(([vdk, arr]) => {
             if (!iPeriode(vdk, periode)) return;
             (arr||[]).forEach(v => {
               if (getJobbprofil(v.jobId).id !== prof.id) return;
               belop += calcVaktPay(v, prof, vdk, isVaktHelligdag(vdk, v, helligdager)).pay;
+              antall++;
             });
           });
           // 0 kr betyr at hun ikke jobbet noe i perioden — et merke for det
           // ville bare vært en tom boks midt i kalenderen uten informasjon.
-          if (belop > 0) (utbetalingerPaaDag[bdk] = utbetalingerPaaDag[bdk] || []).push({ prof, belop });
+          if (belop > 0) (utbetalingerPaaDag[bdk] = utbetalingerPaaDag[bdk] || []).push({ prof, belop, periode, antall });
         });
       });
     }
@@ -736,11 +737,11 @@ function renderLonnskalkulator() {
       // eller flere jobber. Vises uansett om det også ligger en vakt her.
       const utbetalinger = utbetalingerPaaDag[dk2];
       if (utbetalinger && utbetalinger.length) {
-        utbetalinger.forEach(({ prof, belop }) => {
+        utbetalinger.forEach(({ prof, belop, periode, antall }) => {
           const b = document.createElement('div');
-          b.className = 'utbetaling-merke';
-          b.title = `${prof.name}: lønn for perioden som akkurat er avsluttet`;
-          b.style.cssText = `display:flex;align-items:center;gap:3px;width:100%;margin-top:3px;padding:2px 4px;border-radius:5px;background:${prof.farge || '#9aab90'}22;color:${prof.farge || 'var(--text)'}`;
+          b.className = 'utbetaling-merke info-tip';
+          b.dataset.tip = `${prof.name}\n${periodeTekst(periode)} · ${antall} vakter\nLønn for perioden som akkurat er avsluttet`;
+          b.style.cssText = `display:flex;align-items:center;gap:3px;width:100%;margin-top:3px;padding:2px 4px;border-radius:5px;background:${prof.farge || '#9aab90'}22;color:${prof.farge || 'var(--text)'};position:relative`;
           // 'income' er nøkkelen i ICON_MAP som peker til wallet-ikonet —
           // icon() slår opp på dette navnet, ikke på selve SVG-stien.
           b.innerHTML = `${icon('income',{size:9})}<span style="font-size:8px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${Math.round(belop).toLocaleString('nb-NO')} kr</span>`;
