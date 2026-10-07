@@ -667,10 +667,13 @@ function renderLonnskalkulator() {
 
     // ── Utbetalingsdager synlig i rutenettet ──────────────────────────
     // Finn utbetalingsdatoen (helgejustert) for hver jobb i hver måned
-    // rutenettet dekker, og beløpet for perioden den betaler ut. Bare med to
-    // eller flere jobber — med én jobb er det ingen tvetydighet å avklare.
+    // rutenettet dekker, og beløpet for perioden den betaler ut. Gjelder
+    // uansett antall jobber — «når kommer lønna, og hvor mye» er nyttig å
+    // se selv med bare én jobb. (Fargeprikken under er det eneste som
+    // faktisk trenger flere jobber for å gi mening — den er fortsatt
+    // begrenset til det.)
     const utbetalingerPaaDag = {}; // dk -> [{ prof, belop }]
-    if (profiles.length > 1) {
+    {
       const maaneder = new Set(periodeDager.map(d => d.getFullYear()+'-'+d.getMonth()));
       profiles.forEach(prof => {
         maaneder.forEach(key => {
