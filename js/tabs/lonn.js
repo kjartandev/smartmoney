@@ -732,8 +732,10 @@ function renderLonnskalkulator() {
         ? `1. ${monthsShort[dato.getMonth()].toLowerCase()}`
         : d;
       cell.appendChild(dn2);
-      // Fargeprikk per jobb hvis dagen hører til jobbens lønnsperiode — bare
-      // med flere jobber, siden det ikke er noe å skille mellom med én.
+      // Fargeprikk per jobb på dagene som fortsatt teller mot NESTE
+      // utbetaling — ikke på dagene i perioden som allerede er avregnet
+      // (den har sitt eget utbetalingsmerke lenger ned i måneden). Bare med
+      // flere jobber, siden det ikke er noe å skille mellom med én.
       if (profiles.length > 1) {
         const relevanteJobber = profiles.filter(prof => dagTilhoererJobbPeriode(dk2, dato, prof));
         if (relevanteJobber.length) {
@@ -741,7 +743,7 @@ function renderLonnskalkulator() {
           prikker.style.cssText = 'display:flex;gap:2px;width:100%;margin-top:2px';
           relevanteJobber.forEach(prof => {
             const d2 = document.createElement('div');
-            d2.title = prof.name;
+            d2.title = `${prof.name} — teller mot neste lønning`;
             d2.style.cssText = `width:5px;height:5px;border-radius:50%;background:${prof.farge || '#9aab90'}`;
             prikker.appendChild(d2);
           });
