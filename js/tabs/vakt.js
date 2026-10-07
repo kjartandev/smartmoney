@@ -178,18 +178,6 @@ function utbetalingsdato(aar, maaned, prof) {
 function utbetaltPeriode(aar, maaned, prof) {
   return lonnPeriode(aar, maaned - 1, prof.lonnFra);
 }
-// Hører dagen til jobbens ÅPNE periode — den som ennå ikke er betalt ut.
-// Sjekker bevisst bare perioden som starter i datoens egen kalendermåned,
-// ikke den som nettopp ble avsluttet: den forrige er allerede avregnet (se
-// utbetalingsmerket for den), så det er ingenting å markere der. Hadde
-// begge periodene talt — de dekker til sammen hver dag i måneden uten
-// hull — ville markøren stått på absolutt alle dager og dermed aldri
-// fortalt noe. Kun den åpne halvparten gir faktisk et svar: «teller denne
-// dagen mot neste lønning, eller er den alt gjort opp?»
-function dagTilhoererJobbPeriode(dk, dato, prof) {
-  return iPeriode(dk, lonnPeriode(dato.getFullYear(), dato.getMonth(), prof.lonnFra));
-}
-
 // Single source of truth: a shift counts as helligdag if it's on the official
 // Norwegian holiday calendar OR the user manually flagged it on the vakt itself.
 function isVaktHelligdag(dk, vakt, helligdager) {
