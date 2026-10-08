@@ -192,7 +192,7 @@ function renderLonnskalkulator() {
   topCard.className = 'card';
   topCard.style.marginBottom = '20px';
   topCard.innerHTML = `
-    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px">Lønnskalkulator 2025</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px">Lønnskalkulator</div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:16px;align-items:end">
       <div>
         <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">Brutto månedslønn</label>
