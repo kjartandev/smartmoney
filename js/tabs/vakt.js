@@ -198,9 +198,18 @@ function calcVaktPay(vakt, sett, dk, isHelligdag=false) {
   if(workMin<=0) return {hours:0,pay:0,eveningH:0,nightH:0,helgH:0,helligH:0};
   const kF=toMin(sett.kveldFra,'17:00'), nF=toMin(sett.nattFra,'21:00'), nT=toMin(sett.nattTil,'06:00');
   const ov=(a,b,x,y)=>Math.max(0,Math.min(b,y)-Math.max(a,x));
+  // Overlap mellom et innafor-døgnet skiftsegment [a,b) og et tilbakevendende
+  // klokkeslett-vindu [from,to) — vinduet pakkes over midnatt (telles som
+  // [from,24:00) + [00:00,to)) bare når to ligger FØR from på klokka, f.eks.
+  // 21:00–06:00. Er to etter from, f.eks. 17:00–21:00 eller 00:00–06:00, er
+  // vinduet innafor samme døgn og skal IKKE pakkes — en bruker som setter
+  // nattillegg til 00:00–06:00 (altså to>from) fikk tidligere 00:00 tolket
+  // som "etter midnatt enn from", noe som dobbelttalte hele døgnet og ga 8t
+  // nattillegg på en 7,5t vakt i stedet for riktige 0,5t.
+  const dagvindu=(a,b,from,to)=>to>from ? ov(a,b,from,to) : ov(a,b,from,1440)+ov(a,b,0,to);
   const e2=s+workMin, d1e=Math.min(e2,1440);
-  let eveMin=ov(s,d1e,kF,nF), nightMin=ov(s,d1e,nF,1440)+ov(s,d1e,0,nT);
-  if(e2>1440){const d2e=e2-1440; eveMin+=ov(0,d2e,kF,nF); nightMin+=ov(0,d2e,nF,1440)+ov(0,d2e,0,nT);}
+  let eveMin=dagvindu(s,d1e,kF,nF), nightMin=dagvindu(s,d1e,nF,nT);
+  if(e2>1440){const d2e=e2-1440; eveMin+=dagvindu(0,d2e,kF,nF); nightMin+=dagvindu(0,d2e,nF,nT);}
   const hours=workMin/60, eveningH=eveMin/60, nightH=nightMin/60;
   const date=new Date(dk);
   // sett.helgLordag is per-job: some jobs (e.g. retail) pay no weekend
