@@ -91,9 +91,14 @@ function renderLonnskalkulator() {
         ${items.length === 0 ? `<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px 0">Ingen poster enda — legg til din første!</div>` : ''}
         ${items.map(item => `
           <div class="fordeling-row" data-id="${item.id}" draggable="true" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);cursor:grab">
-            <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text)"><span class="budget-drag-handle" title="Dra for å endre rekkefølge" style="opacity:1">⠿</span>${item.name}</span>
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-weight:600;font-size:13px">${kr(item.amount)}</span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);flex:1;min-width:0">
+              <span class="budget-drag-handle" title="Dra for å endre rekkefølge" style="opacity:1">⠿</span>
+              <input type="text" class="fordeling-name-input" data-id="${item.id}" draggable="false" value="${item.name}"
+                style="flex:1;min-width:0;border:none;background:transparent;color:var(--text);font-family:inherit;font-size:13px;padding:3px 4px;border-radius:4px;cursor:text">
+            </span>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+              <input type="number" class="fordeling-amount-input" data-id="${item.id}" draggable="false" value="${item.amount}"
+                style="width:72px;border:none;background:transparent;color:var(--text);font-weight:600;font-size:13px;text-align:right;padding:3px 4px;border-radius:4px;cursor:text">
               <span style="font-size:11px;color:var(--text-muted)">${netto>0?((item.amount/netto)*100).toFixed(0)+'%':''}</span>
               <button class="sort-btn del-post-btn" data-id="${item.id}" style="padding:2px 7px;font-size:11px;color:#f44336">×</button>
             </div>
@@ -123,6 +128,31 @@ function renderLonnskalkulator() {
         </div>
       </div>`;
 
+    // Navn og beløp redigeres rett i raden — lagres når feltet mister fokus
+    // (klikk bort, eller Enter som trigger blur), ingen slett-og-legg-til.
+    fd.querySelectorAll('.fordeling-name-input').forEach(inp => {
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+      inp.addEventListener('change', () => {
+        const items = loadFordeling();
+        const it = items.find(i => i.id === inp.dataset.id);
+        if (!it) return;
+        it.name = inp.value.trim() || it.name;
+        saveFordeling(items);
+        renderFordelingChart();
+      });
+    });
+    fd.querySelectorAll('.fordeling-amount-input').forEach(inp => {
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+      inp.addEventListener('change', () => {
+        const items = loadFordeling();
+        const it = items.find(i => i.id === inp.dataset.id);
+        if (!it) return;
+        it.amount = parseFloat(inp.value) || 0;
+        saveFordeling(items);
+        renderFordeling();
+        renderFordelingChart();
+      });
+    });
     document.getElementById('addPostBtn').addEventListener('click', () => {
       document.getElementById('addPostForm').style.display = 'block';
       document.getElementById('postName').focus();
