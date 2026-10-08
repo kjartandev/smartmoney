@@ -377,11 +377,9 @@ function renderLonnskalkulator() {
         <button class="sort-btn" id="importVakterBtn" style="font-size:11px">+ Importer vakter (lim inn JSON)</button>
         <div id="importVakterArea" style="display:none;margin-top:8px">
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">
-            Lim inn en liste gruppert på jobbnavn, f.eks fra et skjermbilde av vaktplanen:
-            <code style="display:block;margin-top:4px;padding:6px;border-radius:6px;background:var(--chip-bg);font-size:10px;white-space:pre-wrap">{"Jobbnavn": [{"dato":"2026-09-02","start":"11:30","end":"15:02"}]}</code>
-            Vaktene legges til i tillegg til det som allerede ligger der — ingenting blir overskrevet, og limer du inn samme liste to ganger hopper den bare over duplikatene.
+            Lim inn en liste gruppert på jobbnavn, f.eks fra et skjermbilde av vaktplanen. Vaktene legges til i tillegg til det som allerede ligger der — ingenting blir overskrevet, og limer du inn samme liste to ganger hopper den bare over duplikatene.
           </div>
-          <textarea id="importVakterInput" rows="6" placeholder='{"Jordbærpikene": [{"dato":"2026-09-02","start":"11:30","end":"15:02"}], "Olearys": [{"dato":"2026-09-01","start":"17:00","end":"00:00"}]}' style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:monospace;font-size:11px;resize:vertical"></textarea>
+          <textarea id="importVakterInput" rows="6" placeholder="Lim inn JSON her" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:monospace;font-size:11px;resize:vertical"></textarea>
           <button class="sort-btn sort-active" id="doImportVakterBtn" style="margin-top:6px;font-size:11px">Importer</button>
         </div>
       </div>
