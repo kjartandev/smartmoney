@@ -373,6 +373,18 @@ function renderLonnskalkulator() {
         <div id="jobbProfilForm" style="display:none"></div>
         <button class="sort-btn" id="addJobProfilBtn" style="margin-top:8px;font-size:11px">+ Ny jobb</button>
       </div>
+      <div style="border-top:1px solid var(--border-light);padding-top:12px">
+        <button class="sort-btn" id="importVakterBtn" style="font-size:11px">+ Importer vakter (lim inn JSON)</button>
+        <div id="importVakterArea" style="display:none;margin-top:8px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">
+            Lim inn en liste gruppert på jobbnavn, f.eks fra et skjermbilde av vaktplanen:
+            <code style="display:block;margin-top:4px;padding:6px;border-radius:6px;background:var(--chip-bg);font-size:10px;white-space:pre-wrap">{"Jobbnavn": [{"dato":"2026-09-02","start":"11:30","end":"15:02"}]}</code>
+            Vaktene legges til i tillegg til det som allerede ligger der — ingenting blir overskrevet, og limer du inn samme liste to ganger hopper den bare over duplikatene.
+          </div>
+          <textarea id="importVakterInput" rows="6" placeholder='{"Jordbærpikene": [{"dato":"2026-09-02","start":"11:30","end":"15:02"}], "Olearys": [{"dato":"2026-09-01","start":"17:00","end":"00:00"}]}' style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:monospace;font-size:11px;resize:vertical"></textarea>
+          <button class="sort-btn sort-active" id="doImportVakterBtn" style="margin-top:6px;font-size:11px">Importer</button>
+        </div>
+      </div>
       `;
     calWrap.appendChild(settCard);
 
@@ -607,6 +619,49 @@ function renderLonnskalkulator() {
         renderProfilListe();
         showToast('Jobbprofil opprettet');
       });
+    });
+
+    // ── Importer vakter fra lim-inn-JSON ───────────────────────────────
+    // Tenkt for å slippe å taste inn vakter manuelt fra et skjermbilde av
+    // en ekstern vaktplan: {"Jobbnavn": [{dato,start,end}, ...]}. Jobbnavn
+    // matches fritt mot eksisterende profiler (både eksakt og delvis), så
+    // man slipper å vite den interne job-id-en. Legger kun til — overskriver
+    // aldri — og hopper stille over vakter som allerede finnes (samme jobb,
+    // dato, start og slutt), så det er trygt å lime inn samme liste flere
+    // ganger uten å få duplikater.
+    document.getElementById('importVakterBtn').addEventListener('click', () => {
+      const areaEl = document.getElementById('importVakterArea');
+      areaEl.style.display = areaEl.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('doImportVakterBtn').addEventListener('click', () => {
+      const raw = document.getElementById('importVakterInput').value.trim();
+      if (!raw) { showToast('Lim inn JSON først'); return; }
+      let data;
+      try { data = JSON.parse(raw); } catch (e) { showToast('Ugyldig JSON — sjekk formatet'); return; }
+      const norm = s => String(s || '').toLowerCase().trim();
+      const alle = loadVakter();
+      let lagtTil = 0, duplikater = 0;
+      const ukjente = [];
+      Object.entries(data).forEach(([jobbNavn, skift]) => {
+        const prof = profiles.find(p => norm(p.name) === norm(jobbNavn))
+                  || profiles.find(p => norm(p.name).includes(norm(jobbNavn)) || norm(jobbNavn).includes(norm(p.name)));
+        if (!prof) { ukjente.push(jobbNavn); return; }
+        (skift || []).forEach(v => {
+          if (!v.dato || !v.start || !v.end) return;
+          const dagListe = alle[v.dato] = alle[v.dato] || [];
+          const finnesAllerede = dagListe.some(x => x.jobId === prof.id && x.start === v.start && x.end === v.end);
+          if (finnesAllerede) { duplikater++; return; }
+          dagListe.push({ start: v.start, end: v.end, kode: null, jobId: prof.id });
+          lagtTil++;
+        });
+      });
+      saveVakter(alle);
+      document.getElementById('importVakterInput').value = '';
+      let msg = `La til ${lagtTil} vakter`;
+      if (duplikater) msg += `, hoppet over ${duplikater} duplikater`;
+      if (ukjente.length) msg += `. Fant ikke jobb: ${ukjente.join(', ')}`;
+      showToast(msg);
+      renderCal(true);
     });
 
     // Måneden står alltid i tittelen, også når periodefilteret er på — da
