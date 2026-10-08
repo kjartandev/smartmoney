@@ -37,11 +37,16 @@ function renderLonnskalkulator() {
   const saved = loadLonnState();
   let bruttoMnd     = saved.bruttoMnd || 50000;
   let manualSkattPct = saved.manualSkattPct != null ? saved.manualSkattPct : null; // null = use auto
+  // Stipend (f.eks. fra Lånekassen) er skattefritt og skal ikke inn i
+  // brutto/skatt-regnestykket — det legges bare oppå netto når man ser hvor
+  // mye man faktisk har å fordele i budsjettet.
+  let stipendMnd = saved.stipendMnd || 0;
 
   function autoSkattPct() { return bruttoMnd > 0 ? calcSkatt(bruttoMnd * 12) / (bruttoMnd * 12) * 100 : 0; }
   function effectivePct() { return manualSkattPct != null ? manualSkattPct : autoSkattPct(); }
   function skattMndCalc() { return Math.round(bruttoMnd * effectivePct() / 100); }
   function nettoMnd()     { return Math.round(bruttoMnd - skattMndCalc()); }
+  function totalFordelbar() { return nettoMnd() + stipendMnd; }
   function kr(v)          { return Math.round(v).toLocaleString('nb-NO') + ' kr'; }
 
   // Reorders the fordeling list by moving draggedId to sit right before/after
@@ -61,7 +66,7 @@ function renderLonnskalkulator() {
   let draggedPostId = null;
 
   function renderFordeling() {
-    const netto    = nettoMnd();
+    const netto    = totalFordelbar();
     const items    = loadFordeling();
     const fordelt  = items.reduce((s, i) => s + i.amount, 0);
     const rest     = netto - fordelt;
@@ -72,12 +77,12 @@ function renderLonnskalkulator() {
     if (!fd) return;
     fd.innerHTML = `
       <div class="section-head" style="display:flex;justify-content:space-between;align-items:center">
-        <span>Fordeling av netto lønn</span>
+        <span>Fordeling av ${stipendMnd > 0 ? 'netto lønn + stipend' : 'netto lønn'}</span>
         <button class="sort-btn" id="addPostBtn">+ Post</button>
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
-          <span style="color:var(--text-muted)">Netto å fordele</span>
+          <span style="color:var(--text-muted)">${stipendMnd > 0 ? 'Netto + stipend å fordele' : 'Netto å fordele'}</span>
           <span style="font-weight:700;color:#4caf50">${kr(netto)}</span>
         </div>
         <div style="background:var(--chip-bg);border-radius:4px;height:10px;overflow:hidden;margin-bottom:14px">
@@ -207,6 +212,11 @@ function renderLonnskalkulator() {
           style="width:100%;box-sizing:border-box;padding:10px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:16px;font-weight:700">
       </div>
     </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">Stipend (skattefritt, kr/mnd)</label>
+      <input id="stipendInput" type="number" min="0" placeholder="0" value="${stipendMnd || ''}"
+        style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:16px;font-weight:700">
+    </div>
     <div id="lonnSummary">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
         <div style="background:var(--chip-bg);border-radius:10px;padding:12px">
@@ -223,6 +233,10 @@ function renderLonnskalkulator() {
         </div>
       </div>
       <div style="font-size:11px;color:var(--text-muted);text-align:right">Effektiv skatt: <span id="lsEff">${effRate}</span>% <span id="lsEffHint">${manualSkattPct != null ? '· manuell' : '· estimert etter norske skatteregler 2025'}</span></div>
+      <div id="lsStipendRow" style="display:${stipendMnd > 0 ? 'flex' : 'none'};justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-light);font-size:13px;font-weight:700">
+        <span style="color:var(--text)">Netto + stipend</span>
+        <span id="lsTotal" style="color:#7dd3fc">${kr(totalFordelbar())}</span>
+      </div>
     </div>`;
   leftCol.appendChild(topCard);
 
@@ -292,6 +306,9 @@ function renderLonnskalkulator() {
     document.getElementById('lsN').textContent = kr(nm);
     document.getElementById('lsEff').textContent = ef;
     document.getElementById('lsEffHint').textContent = manualSkattPct != null ? '· manuell' : '· estimert etter norske skatteregler 2025';
+    const stipendRow = document.getElementById('lsStipendRow');
+    stipendRow.style.display = stipendMnd > 0 ? 'flex' : 'none';
+    document.getElementById('lsTotal').textContent = kr(totalFordelbar());
     // update placeholder to reflect new auto rate when brutto changes
     const pctInput = document.getElementById('skattPctInput');
     if (pctInput && manualSkattPct == null) pctInput.placeholder = autoSkattPct().toFixed(1);
@@ -300,14 +317,20 @@ function renderLonnskalkulator() {
 
   document.getElementById('lonnInput').addEventListener('input', e => {
     bruttoMnd = parseFloat(e.target.value) || 0;
-    saveLonnState({ bruttoMnd, manualSkattPct });
+    saveLonnState({ bruttoMnd, manualSkattPct, stipendMnd });
     updateCalc();
   });
 
   document.getElementById('skattPctInput').addEventListener('input', e => {
     const v = e.target.value.trim();
     manualSkattPct = v === '' ? null : Math.min(100, Math.max(0, parseFloat(v) || 0));
-    saveLonnState({ bruttoMnd, manualSkattPct });
+    saveLonnState({ bruttoMnd, manualSkattPct, stipendMnd });
+    updateCalc();
+  });
+
+  document.getElementById('stipendInput').addEventListener('input', e => {
+    stipendMnd = Math.max(0, parseFloat(e.target.value) || 0);
+    saveLonnState({ bruttoMnd, manualSkattPct, stipendMnd });
     updateCalc();
   });
 
