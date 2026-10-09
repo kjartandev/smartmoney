@@ -357,6 +357,31 @@
   /* Decorative, and it holds a permanent strip of height directly under the
      nav bar where vertical space is scarcest. */
   .app-footer { display: none; }
+
+  /* Loading screen had zero mobile treatment: a fixed 114px side-by-side
+     row layout, sized for a wide desktop window, ran the "SmartMoney"
+     wordmark straight off both edges of a phone screen. Stacks the arrow
+     above the name instead of beside it, and shrinks both. Both canvases
+     (js/main.js, initLoadingCanvas/initLoadingRain) set their own pixel
+     dimensions directly via JS, independent of any CSS on them — a CSS
+     transform:scale() on their wrapper is purely visual after the fact,
+     so this is safe to tune here without touching the drawing code.
+     Selectors kept #loadingScreen-prefixed to match base.css's own
+     compound selectors — a bare .class here loses to #id .class on
+     specificity regardless of which stylesheet loads later. */
+  #loadingScreen { flex-direction: column; gap: 4px; }
+  #loadingScreen .loading-arrow-wrap {
+    transform: scale(0.42);
+    /* Row layout's left/right margins compensated for the row sitting next
+       to the text; column layout instead needs the invisible rim trimmed
+       top/bottom so it doesn't just add dead vertical space above the
+       name. */
+    margin: -63px 0 -30px;
+  }
+  #loadingScreen .loading-bg-icon { width: 220px; height: 220px; }
+  #loadingScreen .loading-name { text-align: center; }
+  #loadingScreen .loading-name-row { justify-content: center; font-size: 46px; }
+  #loadingScreen .loading-name-row:last-child { margin-top: -6px; }
 }
 
 /* ── Collapse the grouped nav to 4 labelled top-level tabs ─────────
