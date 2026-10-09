@@ -152,4 +152,38 @@ function setActiveNav(tab) {
   }
   lastActiveTab = tab;
   applyNavGroups();
+  renderMobileSubNav(tab);
+}
+
+// Mobile-only: a small swipeable pill strip just under the header, shown
+// whenever the current tab has siblings in its sidebar group (Oversikt+
+// Innsikt · Lønn+Sparing+Skatt+Budsjett · Transaksjoner+Uke for uke+Privat+
+// Måneder). The bottom tab bar only shows the 4 top-level entries on
+// mobile (see css/responsive.css), so this is how the 7 sub-tabs stay
+// reachable. Reads sibling order straight from the live .nav-group DOM
+// rather than NAV_TAB_GROUP above — that lookup's key order doesn't match
+// the actual sidebar markup order, so it would've put pills in the wrong
+// sequence. Hidden via CSS on desktop widths regardless of this running.
+function renderMobileSubNav(tab) {
+  let bar = document.getElementById('mobileSubNav');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'mobileSubNav';
+    const appBody = document.querySelector('.app-body');
+    appBody.parentNode.insertBefore(bar, appBody);
+  }
+  const head  = document.querySelector(`.nav-group-head[data-tab="${tab}"]`);
+  const sub   = document.querySelector(`.nav-item.nav-sub[data-tab="${tab}"]`);
+  const group = (head || sub) ? (head || sub).closest('.nav-group') : null;
+  const items = group ? [group.querySelector('.nav-group-head'), ...group.querySelectorAll('.nav-item.nav-sub')] : [];
+  if (items.length < 2) { bar.innerHTML = ''; bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  bar.innerHTML = items.map(el => {
+    const t = el.dataset.tab;
+    const label = el.querySelector('.nav-label')?.textContent || '';
+    return `<button class="mobile-subnav-pill${t === tab ? ' active' : ''}" data-tab="${t}">${icon(t, { size: 13 })} ${label}</button>`;
+  }).join('');
+  bar.querySelectorAll('.mobile-subnav-pill').forEach(btn => {
+    btn.addEventListener('click', () => navigateToTab(btn.dataset.tab));
+  });
 }

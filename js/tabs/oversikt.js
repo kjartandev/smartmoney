@@ -81,13 +81,13 @@ function renderOversikt() {
 
   document.getElementById('mainContent').innerHTML = `
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
-  <div class="sum-card">
+  <div class="sum-card" onclick="openPanel('inntekt')" style="cursor:pointer" title="Klikk for å se transaksjoner">
     <div class="sc-label">Inntekt</div>
     <div class="sc-val sc-green">${fmt(ti)}</div>
     <div class="sc-sub" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${income.length} utbetaling${income.length!==1?'er':''} ${trendBadge(trendInc,true)}</div>
     ${tsl>0?`<div class="sc-sub" style="margin-top:2px">+ ${fmt(tsl)} studielån</div>`:''}
   </div>
-  <div class="sum-card">
+  <div class="sum-card" onclick="openPanel('utgifter')" style="cursor:pointer" title="Klikk for å se transaksjoner">
     <div class="sc-label">Utgifter</div>
     <div class="sc-val sc-red">${fmt(te)}</div>
     <div class="sc-sub" style="display:flex;gap:6px;align-items:center">${expenses.length} transaksjoner ${trendBadge(trendExp)}</div>

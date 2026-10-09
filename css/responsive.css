@@ -1,5 +1,12 @@
 /* ── Mobile responsive ──────────────────────────────────────────── */
 
+/* True default (not inside a media query, so no inline style from JS is
+   needed to compete with it): renderMobileSubNav() (js/ui.js) creates this
+   element unconditionally, on every width. It only ever becomes visible via
+   its own .visible rule below, which lives inside the mobile media query —
+   so this bar simply cannot show on desktop, however its class is toggled. */
+#mobileSubNav { display: none; }
+
 /* Touch behaviour, all sizes. touch-action removes the ~300ms delay
    browsers add before firing a tap (they were waiting to see if it was a
    double-tap zoom); overscroll-behavior stops the whole shell rubber-banding
@@ -14,39 +21,50 @@
      these the topbar sits under the notch / Dynamic Island and the bottom nav
      under the home indicator. env() is 0 everywhere that has no such cutout,
      so these are harmless on Android and in a normal browser tab. */
+  /* One slim row (logo + two icon buttons) instead of three stacked rows
+     (brand / stats / actions). The stats row is dropped entirely — Oversikt
+     already shows the same Inntekt/Utgifter/Netto numbers in its own cards,
+     so the header row was pure duplication eating ~300px of a phone screen
+     before any real content appeared. */
   .topbar {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    padding-top: env(safe-area-inset-top);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
   }
   .topbar-brand {
     border-right: none;
-    border-bottom: 1px solid rgba(255,255,255,0.12);
-    padding: 12px 16px;
+    padding: 0;
+    justify-content: flex-start;
+    gap: 8px;
   }
-  .topbar-brand h1 { font-size: 18px; }
-  .topbar-logo { width: 38px; height: 38px; border-radius: 10px; }
-  .topbar-stats {
-    padding: 0 8px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+  .topbar-brand h1 { font-size: 16px; }
+  .topbar-brand .period { display: none !important; }
+  .topbar-logo { width: 32px; height: 32px; border-radius: 9px; }
+  .topbar-stats { display: none; }
+  .topbar-actions { padding: 0; gap: 6px; flex-wrap: nowrap; }
+  /* requestFullscreen() is a no-op on iOS Safari (silently swallowed in
+     js/main.js) — on the most common mobile browser this button is dead
+     weight competing for the now-scarce header space. */
+  #fullscreenBtn { display: none; }
+  /* Both remaining buttons become plain icon circles: the button's own text
+     is zeroed out and the icon (an existing .ti-icon span, or a ::before for
+     addMonthBtn which has none) gets its size back explicitly. 44px matches
+     Apple's minimum comfortable tap target. */
+  .topbar-actions .top-btn {
+    font-size: 0;
+    padding: 0;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
-  .topbar-stats::-webkit-scrollbar { display: none; }
-  .stat-block { padding: 10px 14px; }
-  .stat-block .sb-val { font-size: 17px; }
-  .topbar-actions {
-    padding: 8px 12px;
-    gap: 6px;
-    border-top: 1px solid rgba(255,255,255,0.12);
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap;
-  }
-  .topbar-actions::-webkit-scrollbar { display: none; }
-  /* 44px is Apple's minimum comfortable tap target; 36px was a mouse size. */
-  .top-btn { padding: 8px 14px; font-size: 13px; min-height: 44px; flex-shrink: 0; }
+  .topbar-actions .top-btn .ti-icon { font-size: 18px; }
+  #addMonthBtn::before { content: '+'; font-size: 24px; line-height: 1; }
 
   .app-body {
     grid-template-columns: 1fr;
@@ -68,6 +86,7 @@
     flex-shrink: 0;
     height: calc(60px + env(safe-area-inset-bottom));
     align-items: stretch;
+    justify-content: space-around;
   }
   .sidebar::-webkit-scrollbar { display: none; }
   .sidebar-section { display: none; }
@@ -94,16 +113,65 @@
   .nav-item .ni-emoji { font-size: 20px; width: auto; }
   .nav-label { display: block; }
 
+  /* Sibling-pill strip (renderMobileSubNav() in js/ui.js) — same visual
+     language as .filter-chip-sm elsewhere in the app, sized for touch. Only
+     ever present when the JS adds .visible (current tab has siblings). */
+  #mobileSubNav.visible {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px max(12px, env(safe-area-inset-right)) 2px max(12px, env(safe-area-inset-left));
+    flex-shrink: 0;
+  }
+  #mobileSubNav.visible::-webkit-scrollbar { display: none; }
+  .mobile-subnav-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 14px;
+    min-height: 36px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .mobile-subnav-pill.active {
+    background: var(--green-accent);
+    border-color: var(--green-accent);
+    color: #fff;
+  }
+
   .content {
-    padding: 16px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left));
+    padding: 18px max(16px, env(safe-area-inset-right)) 18px max(16px, env(safe-area-inset-left));
     overflow-y: auto;
     flex: 1;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
   }
   .two-col, .summary-grid { grid-template-columns: 1fr; }
-  .card { overflow-x: auto; padding: 16px; border-radius: 12px; }
-  .section-head { margin: 22px 0 10px; }
+  .card { overflow-x: auto; padding: 16px; border-radius: 12px; margin-bottom: 4px; }
+  .section-head { margin: 26px 0 12px; }
+
+  /* Plain fade on tab switch instead of an instant innerHTML flash — see
+     rerenderCurrentTab() in js/io.js for the .tab-switching toggle. A small
+     offset rather than a full-width slide: .content has no overflow-x
+     clipping against the bottom nav bar beneath it, so a bigger transform
+     could transiently paint outside its own box. */
+  #mainContent {
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  #mainContent.tab-switching {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 
   /* Any input under 16px makes iOS zoom the whole page in on focus, and it
      does not zoom back out — the layout is left stranded mid-zoom. 16px is
@@ -117,9 +185,77 @@
   .search-bar { padding: 4px 10px; }
   .search-bar input { min-height: 40px; }
 
-  #slidePanel { width: 100%; right: -100%; padding-bottom: env(safe-area-inset-bottom); }
-  #slidePanel.open { right: 0; }
+  /* Bottom sheet instead of a right-edge drawer — openPanel()/closePanel()
+     (js/io.js) only ever toggle the .open class, so this is a pure CSS
+     swap, no JS change needed. Stays display:flex (inherited from desktop)
+     so the slide can actually transition; hidden via transform, not
+     display:none. Real drag-to-dismiss physics are deliberately out of
+     scope — tap-outside (#panelOverlay, already existing) and the × button
+     still close it. */
+  #slidePanel {
+    top: auto;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    max-height: 85vh;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #slidePanel.open { right: 0; transform: translateY(0); }
+
+  /* Same bottom-sheet treatment for the Verktøy dropdown (import/export/
+     tema/ikonpakke) — on desktop it's a small anchored dropdown
+     (css/layout.css), which doesn't work as a tap target once it has to
+     hold a column of options at phone width. #toolsMenu toggles the same
+     .open class either way (js/main.js), so again no JS change. Unlike
+     #slidePanel this one never had safe-area padding before — it's new
+     here, not copied from an existing pattern. */
+  .tools-menu {
+    display: block;
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 0;
+    border-radius: 16px 16px 0 0;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+    pointer-events: none;
+  }
+  .tools-menu.open { transform: translateY(0); pointer-events: all; }
+  .tools-item { padding: 12px 20px; font-size: 14px; }
+
+  /* Dimming backdrop for the tools sheet — #slidePanel already has
+     #panelOverlay for this, but the tools dropdown never needed one as a
+     small anchored menu. z-index sits above ordinary content (which has
+     none) and below .tools-menu's own 200, so it never has to compete with
+     #slidePanel/#panelOverlay's 500/499 if both happened to be open.
+     pointer-events:none is deliberate — the existing document-level click
+     listener (js/main.js) already closes the menu on any outside tap,
+     regardless of what element receives it. */
+  body:has(.tools-menu.open)::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    z-index: 150;
+    pointer-events: none;
+  }
+
   .upload-box { width: 90vw; padding: 32px 24px; }
+}
+
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  #mainContent { transition: none; }
 }
 
 /* ── Phone: transaction table becomes stacked cards ───────────────
@@ -170,8 +306,7 @@
   .tx-table tfoot td { display: block; padding: 10px 0 !important; border: none; }
   .tx-table tfoot td[colspan] { flex: 1 1 100%; }
 
-  .nav-label { display: none; }
-  .nav-item { min-width: 54px; padding: 6px 10px; }
+  .nav-item { min-width: 54px; padding: 8px 10px; }
   .sum-card .sc-val { font-size: 19px; }
 }
 
@@ -224,28 +359,26 @@
   .app-footer { display: none; }
 }
 
-/* ── Flatten the grouped nav for the bottom bar ───────────────────
+/* ── Collapse the grouped nav to 4 labelled top-level tabs ─────────
    The sidebar nests most tabs inside collapsible groups: three
    .nav-group-head entries (Oversikt, Lønn, Transaksjoner) each hiding a
-   .nav-group-body of sub-tabs behind an expand arrow, plus Verktøy on its
-   own. That works down a tall sidebar. Turned on its side into a 60px bar it
-   does not: only the four top-level entries ever showed, and the seven
-   sub-tabs — Innsikt, Sparing, Skatt, Budsjett, Uke for uke, Privat,
-   Måneder — had no way to be reached at all on a phone.
+   .nav-group-body of sub-tabs, plus Verktøy on its own. An earlier version
+   of this bar flattened all 11 (4 top-level + 7 sub-tabs: Innsikt, Sparing,
+   Skatt, Budsjett, Uke for uke, Privat, Måneder) into one undifferentiated,
+   horizontally-scrolling strip of bare icons — no labels fit, so you had to
+   guess what each one meant.
 
-   display:contents removes the group wrapper and the body wrapper from the
-   layout without hiding what is inside them, so every tab becomes a direct
-   child of the bar and simply scrolls. It also overrides the inline
-   display:none the collapse logic writes onto a closed body — hence the
-   !important, which is aimed at that inline style, not at another rule. */
+   Now the bar shows only the 4 top-level entries, each with icon + label —
+   a real native tab bar, not a sideways sidebar. The 7 sub-tabs are reached
+   instead through the swipeable sibling-pill strip (renderMobileSubNav() in
+   js/ui.js) that appears just under the header whenever the current tab has
+   siblings, so nothing lost reachability — it just doesn't all compete for
+   space in the same bar. */
 @media (max-width: 768px) {
   .nav-group { display: contents; }
-  .nav-group-body { display: contents !important; }
+  .nav-group-body { display: none !important; }
 
-  /* Group heads are a different element from .nav-item but are now peers of
-     them in the bar, so they need the same treatment to not look foreign. */
-  .nav-group-head,
-  .nav-item.nav-sub {
+  .nav-group-head {
     flex-direction: column;
     gap: 2px;
     padding: 6px 14px;
@@ -264,17 +397,14 @@
     border-left-color: transparent;
     border-bottom-color: var(--green-accent);
   }
-  .nav-group-head .ni-emoji,
-  .nav-item.nav-sub .ni-emoji { font-size: 20px; width: auto; }
+  .nav-group-head .ni-emoji { font-size: 20px; width: auto; }
   /* Desktop lets the label take the remaining width to push the arrow right;
      stacked under an icon that would stretch the item and break the row. */
   .nav-group-head .nav-label { flex: none; }
-  .nav-group-body { background: transparent; }
 }
 
 @media (max-width: 560px) {
-  .nav-group-head,
-  .nav-item.nav-sub { min-width: 54px; padding: 6px 10px; }
+  .nav-group-head { min-width: 54px; padding: 8px 10px; }
 }
 
 /* ── Phone refinements ────────────────────────────────────────────── */

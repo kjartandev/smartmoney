@@ -1,5 +1,12 @@
 // ── Re-render current tab ─────────────────────────────────────────
+// The .tab-switching class toggle is harmless on desktop — the opacity/
+// transform it drives only exists inside css/responsive.css's mobile media
+// query, so this is a single choke point (covers direct nav clicks, the
+// mobile sub-nav pills, and browser back/forward alike) rather than
+// touching every render* function or every call site in main.js.
 function rerenderCurrentTab() {
+  const el = document.getElementById('mainContent');
+  if (el) el.classList.add('tab-switching');
   if      (currentTab==='oversikt')     renderOversikt();
   else if (currentTab==='transaksjoner')renderTransaksjoner();
   else if (currentTab==='sparing')      renderSparing();
@@ -11,6 +18,7 @@ function rerenderCurrentTab() {
   else if (currentTab==='lonnskalk')    renderLonnskalkulator();
   else if (currentTab==='skatt')        renderSkatt();
   else if (currentTab==='verktoy')     renderVerktoy();
+  if (el) requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('tab-switching')));
 }
 
 // ── File handling ─────────────────────────────────────────────────
