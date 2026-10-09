@@ -46,7 +46,7 @@
     <p>Eksporter CSV fra Sparebanken Møre nettbank og last opp her. Måneder lagres lokalt i nettleseren.</p>
     <label class="btn-primary" for="fileInput" style="display:block;cursor:pointer">Velg CSV-fil</label>
     <input type="file" id="fileInput" accept=".csv">
-    <p style="margin-top:16px;font-size:11px;color:#b0bba8">Ingen data sendes noe sted</p>
+    <p style="margin-top:16px;font-size:11px;color:#b0bba8">Lagres kun lokalt i nettleseren din — med mindre du selv velger å logge inn og synkronisere til skyen i Verktøy</p>
   </div>
 </div>
 
@@ -99,6 +99,8 @@
           <button class="tools-item" id="darkModeToggle"><span class="ti-icon" data-icon="dark">🌙</span> Bytt tema</button>
           <div class="tools-divider"></div>
           <div class="tools-item" id="iconPackPickerWrap" style="cursor:default"></div>
+          <div class="tools-divider"></div>
+          <div id="kontoSection"></div>
         </div>
       </div>
     </div>
@@ -204,6 +206,9 @@
 <script src="js/io.js?v=20261010"></script>
 <!-- Main (boot, events — must load last) -->
 <script src="js/main.js?v=20261010"></script>
+<!-- Sky-synkronisering (valgfritt, se Verktøy ▾ → Konto) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="js/sync.js?v=20261010b"></script>
 <script src="livereload.js"></script>
 </body>
 </html>
