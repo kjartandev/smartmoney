@@ -7,6 +7,11 @@
    so this bar simply cannot show on desktop, however its class is toggled. */
 #mobileSubNav { display: none; }
 
+/* Same reasoning as #mobileSubNav above — renderMobileMonthSwitcher()
+   (js/ui.js) creates this unconditionally too, shown only via the mobile
+   media query below. */
+#mobileMonthSwitcher { display: none; }
+
 /* Touch behaviour, all sizes. touch-action removes the ~300ms delay
    browsers add before firing a tap (they were waiting to see if it was a
    double-tap zoom); overscroll-behavior stops the whole shell rubber-banding
@@ -112,6 +117,33 @@
   }
   .nav-item .ni-emoji { font-size: 20px; width: auto; }
   .nav-label { display: block; }
+
+  /* Global month switcher (renderMobileMonthSwitcher() in js/ui.js) — the
+     sidebar's year-dropdown + 12-month bar chart that drives this app-wide
+     on desktop is hidden entirely on mobile (no room for a full year grid),
+     which left phones with no way to change month at all. ‹ Måned År › —
+     same shape as the vaktkalender's own #calPrev/#calNext pair. */
+  #mobileMonthSwitcher {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 10px max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    flex-shrink: 0;
+  }
+  .mm-label { font-size: 14px; font-weight: 700; color: var(--text); min-width: 130px; text-align: center; }
+  .mm-arrow {
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
 
   /* Sibling-pill strip (renderMobileSubNav() in js/ui.js) — same visual
      language as .filter-chip-sm elsewhere in the app, sized for touch. Only

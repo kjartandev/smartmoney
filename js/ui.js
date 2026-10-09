@@ -69,6 +69,48 @@ function renderSidebarChart() {
     }
     grid.appendChild(cell);
   }
+  renderMobileMonthSwitcher();
+}
+
+// Mobile-only replacement for the sidebar's year-dropdown + 12-month grid —
+// both are hidden at ≤768px (css/responsive.css) since a full year of bar
+// chart cells has nowhere to go on a phone, which left mobile with no way
+// at all to change the active month. A simple ‹ Måned År › pair of arrows,
+// same pattern the vaktkalender (js/tabs/lonn.js) already uses, writes the
+// exact same activeMonthFilter/activeYear globals the desktop grid does, so
+// every tab that reads getFiltered() (js/core.js) keeps working unchanged.
+// Hidden via CSS on desktop widths regardless of this running.
+function shiftActiveMonth(delta) {
+  let y, m;
+  if (activeMonthFilter) {
+    [y, m] = activeMonthFilter.split('-').map(Number);
+  } else {
+    const now = new Date();
+    y = now.getFullYear(); m = now.getMonth() + 1;
+  }
+  m += delta;
+  if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+  activeMonthFilter = y + '-' + String(m).padStart(2, '0');
+  activeYear = String(y);
+  renderSidebarChart();
+  updateTopbar();
+  rerenderCurrentTab();
+}
+function renderMobileMonthSwitcher() {
+  let bar = document.getElementById('mobileMonthSwitcher');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'mobileMonthSwitcher';
+    bar.innerHTML = `<button class="mm-arrow" id="mmPrev" aria-label="Forrige måned">‹</button><span class="mm-label" id="mmLabel"></span><button class="mm-arrow" id="mmNext" aria-label="Neste måned">›</button>`;
+    const topbar = document.querySelector('.topbar');
+    topbar.parentNode.insertBefore(bar, topbar.nextSibling);
+    document.getElementById('mmPrev').addEventListener('click', () => shiftActiveMonth(-1));
+    document.getElementById('mmNext').addEventListener('click', () => shiftActiveMonth(1));
+  }
+  const now = new Date();
+  const key = activeMonthFilter || (now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
+  const [y, m] = key.split('-').map(Number);
+  document.getElementById('mmLabel').textContent = monthsNo[m - 1].charAt(0).toUpperCase() + monthsNo[m - 1].slice(1) + ' ' + y;
 }
 
 // ── Topbar ───────────────────────────────────────────────────────
