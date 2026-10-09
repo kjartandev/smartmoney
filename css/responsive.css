@@ -376,6 +376,23 @@
   [style*="grid-template-columns:1fr 1fr;"]:not([style*="1fr 1fr 1fr"]) {
     grid-template-columns: 1fr !important;
   }
+  /* A bare "1fr" track defaults to minmax(auto,1fr) — "auto" means "never
+     shrink this column below its CHILD's own unwrapped content width". That
+     minimum is a property of the grid ITEM (this selector), not the
+     container — min-width:0 on the container itself (tried first) has no
+     effect on it. Without this, a card whose content doesn't wrap (e.g. a
+     transaction row's name+date+amount) still forces its track out to
+     ~540px even collapsed to one column, overflowing a 361px phone content
+     area and reintroducing the exact sideways scroll these rules exist to
+     remove. */
+  [style*="grid-template-columns:1fr 1fr 1fr"] > *,
+  [style*="grid-template-columns:repeat(3,1fr)"] > *,
+  [style*="grid-template-columns:repeat(4,1fr)"] > *,
+  [style*="grid-template-columns:repeat(2,1fr)"] > *,
+  [style="display:grid;grid-template-columns:1fr 1fr;gap:12px"] > *,
+  [style*="grid-template-columns:1fr 1fr;"]:not([style*="1fr 1fr 1fr"]) > * {
+    min-width: 0;
+  }
 
   /* Five columns cannot work at this width whatever the units. */
   [style*="grid-template-columns:44px 1.4fr 1fr 1fr auto"] {
