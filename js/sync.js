@@ -124,23 +124,53 @@ function renderKontoLoggedOut(statusMsg = '') {
     <div class="tools-item" style="cursor:default;white-space:normal">
       <div style="font-size:12px;font-weight:600;margin-bottom:8px">Konto</div>
       <input type="email" id="syncEmailInput" placeholder="din@epost.no" style="${KONTO_INPUT_STYLE};margin-bottom:6px">
-      <button class="sort-btn sort-active" id="syncLoginBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px">Send innloggingslenke</button>
+      <button class="sort-btn sort-active" id="syncLoginBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px">Send innloggingskode</button>
       <div id="syncStatus" style="font-size:11px;color:var(--text-muted);margin-top:6px">${statusMsg}</div>
+      <!-- Kode-innlogging finnes fordi en e-postlenke på iOS ALLTID
+           åpner seg i Safari, aldri inne i en app lagt til på
+           hjemskjermen — og de to har helt atskilt lagring, så en
+           innlogging gjort i Safari finnes rett og slett ikke inne i
+           hjemskjerm-appen. Koden kan derimot skrives inn akkurat der
+           man faktisk vil være innlogget. -->
+      <div id="syncCodeWrap" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-light)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Åpner lenken seg i feil nettleser? Skriv inn koden fra e-posten her i stedet:</div>
+        <input type="text" id="syncCodeInput" inputmode="numeric" autocomplete="one-time-code" placeholder="6-sifret kode" style="${KONTO_INPUT_STYLE};margin-bottom:6px;letter-spacing:2px;font-weight:600">
+        <button class="sort-btn" id="syncCodeBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px">Logg inn med kode</button>
+      </div>
     </div>`;
+
+  const statusEl = () => document.getElementById('syncStatus');
+
   document.getElementById('syncLoginBtn').addEventListener('click', async () => {
     const email = document.getElementById('syncEmailInput').value.trim();
-    const statusEl = document.getElementById('syncStatus');
-    if (!email) { statusEl.textContent = 'Skriv inn e-post først'; return; }
-    if (!sbClient) { statusEl.textContent = 'Supabase-biblioteket lastet ikke — sjekk nettverk/blokkering'; return; }
-    statusEl.textContent = 'Sender...';
+    if (!email) { statusEl().textContent = 'Skriv inn e-post først'; return; }
+    if (!sbClient) { statusEl().textContent = 'Supabase-biblioteket lastet ikke — sjekk nettverk/blokkering'; return; }
+    statusEl().textContent = 'Sender...';
     try {
       const { error } = await sbClient.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: location.href.split('#')[0] }
       });
-      statusEl.textContent = error ? 'Noe gikk galt: ' + error.message : 'Lenke sendt! Sjekk e-posten din.';
+      if (error) { statusEl().textContent = 'Noe gikk galt: ' + error.message; return; }
+      statusEl().textContent = 'Sendt! Sjekk e-posten — bruk lenken, eller koden under.';
+      document.getElementById('syncCodeWrap').style.display = 'block';
     } catch (e) {
-      statusEl.textContent = 'Noe gikk galt: ' + (e?.message || e);
+      statusEl().textContent = 'Noe gikk galt: ' + (e?.message || e);
+    }
+  });
+
+  document.getElementById('syncCodeBtn').addEventListener('click', async () => {
+    const email = document.getElementById('syncEmailInput').value.trim();
+    const token = document.getElementById('syncCodeInput').value.trim().replace(/\s/g, '');
+    if (!email) { statusEl().textContent = 'Skriv inn e-posten din over først'; return; }
+    if (!token) { statusEl().textContent = 'Skriv inn koden fra e-posten'; return; }
+    statusEl().textContent = 'Sjekker koden...';
+    try {
+      const { error } = await sbClient.auth.verifyOtp({ email, token, type: 'email' });
+      if (error) { statusEl().textContent = 'Koden ble ikke godtatt: ' + error.message; return; }
+      // onAuthStateChange tegner innlogget-visningen automatisk.
+    } catch (e) {
+      statusEl().textContent = 'Noe gikk galt: ' + (e?.message || e);
     }
   });
 }
