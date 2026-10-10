@@ -27,6 +27,17 @@ function downloadLocalSafetyBackup() {
   a.href = url; a.click(); URL.revokeObjectURL(url);
 }
 
+async function getProfile(userId) {
+  const { data } = await sbClient.from('profiles').select('display_name').eq('id', userId).maybeSingle();
+  return data;
+}
+async function saveDisplayName(name) {
+  const session = await getSyncSession();
+  if (!session) return;
+  const { error } = await sbClient.from('profiles').upsert({ id: session.user.id, display_name: name, updated_at: new Date().toISOString() });
+  if (error) showToast('Kunne ikke lagre navnet: ' + error.message);
+}
+
 async function uploadBackup() {
   const session = await getSyncSession();
   if (!session) return;
@@ -93,14 +104,20 @@ async function renderKontoSection() {
       statusEl.textContent = error ? 'Noe gikk galt: ' + error.message : 'Lenke sendt! Sjekk e-posten din.';
     });
   } else {
+    const profile = await getProfile(session.user.id);
     wrap.innerHTML = `
-      <div class="tools-item" style="cursor:default">
-        <div style="font-size:12px;font-weight:600;margin-bottom:2px">Konto</div>
-        <div style="font-size:11px;color:var(--text-muted)">Logget inn som ${session.user.email}</div>
+      <div class="tools-item" style="cursor:default;white-space:normal">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">Konto</div>
+        <input type="text" id="syncNameInput" placeholder="Navnet ditt" value="${profile?.display_name || ''}"
+          style="display:block;width:100%;box-sizing:border-box;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;margin-bottom:3px">
+        <div style="font-size:11px;color:var(--text-muted)">${session.user.email}</div>
       </div>
       <button class="tools-item" id="syncUploadBtn">${icon('import', { size: 14 })} Last opp til sky</button>
       <button class="tools-item" id="syncDownloadBtn">${icon('download', { size: 14 })} Hent fra sky</button>
       <button class="tools-item" id="syncLogoutBtn" style="color:#f44336">Logg ut</button>`;
+    const nameInput = document.getElementById('syncNameInput');
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
+    nameInput.addEventListener('change', () => saveDisplayName(nameInput.value.trim()));
     document.getElementById('syncUploadBtn').addEventListener('click', uploadBackup);
     document.getElementById('syncDownloadBtn').addEventListener('click', downloadBackup);
     document.getElementById('syncLogoutBtn').addEventListener('click', async () => {
