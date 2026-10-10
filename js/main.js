@@ -537,6 +537,20 @@ async function checkForUpdate() {
   } catch {}
 }
 
+// Sjekken over kjørte opprinnelig bare ved full oppstart, men på mobil
+// er det sjeldent — som regel hentes appen bare opp igjen fra
+// bakgrunnen, og da skjedde ingenting. Kjør den også når appen kommer
+// i forgrunnen igjen. Struping på 60 sekunder så raske fram-og-tilbake-
+// bytter ikke gir en byge med forespørsler; selve omlastingen er
+// uansett sperret til én gang per versjon av sessionStorage-nøkkelen.
+let _lastUpdateCheck = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (Date.now() - _lastUpdateCheck < 60000) return;
+  _lastUpdateCheck = Date.now();
+  checkForUpdate();
+});
+
 function boot(resetTab = true) {
   const stored = loadStored();
   if (stored.length) { bootWithData(stored, resetTab); return; }
