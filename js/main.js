@@ -504,6 +504,39 @@ function bootWithData(stored, resetTab) {
   rerenderCurrentTab();
 }
 
+// ── Oppdateringssjekk ─────────────────────────────────────────────
+// Apper lagt til på iOS-hjemskjermen cacher index.html nærmest for
+// alltid og revaliderer ikke ved oppstart, så nye versjoner nådde aldri
+// fram — eneste utvei var å slette ikonet og legge det til på nytt,
+// noe som OGSÅ sletter all lokal data i den appen. GitHub Pages lar oss
+// ikke sette egne cache-headere (den sender max-age=600 og ingenting vi
+// kan overstyre), så dette må løses her i klienten:
+//
+//   1. Hent version.json med cache:'no-store' — går helt utenom cachen.
+//   2. Er den nyere enn versjonen bakt inn i den HTML-en som faktisk
+//      kjører, vet vi at vi kjører en gammel, cachet kopi.
+//   3. Naviger til samme side med ?v=<ny versjon>. Den URL-en har aldri
+//      vært cachet, så den hentes garantert friskt fra nett — og med
+//      den følger ferske script-/CSS-referanser.
+//
+// sessionStorage-sperren gjør at en eventuell feil aldri kan bli en
+// evig omlastingsløkke: maks én automatisk omlasting per versjon per
+// økt. Feiler hentingen (offline), gjøres ingenting i det hele tatt.
+async function checkForUpdate() {
+  try {
+    const loaded = document.querySelector('meta[name="app-version"]')?.content;
+    if (!loaded) return;
+    const res = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const { version } = await res.json();
+    if (!version || version === loaded) return;
+    const key = 'okonomi_reloaded_for_' + version;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    location.replace(location.pathname + '?v=' + encodeURIComponent(version));
+  } catch {}
+}
+
 function boot(resetTab = true) {
   const stored = loadStored();
   if (stored.length) { bootWithData(stored, resetTab); return; }
@@ -636,4 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   boot(false);
+  // Etter boot, aldri foran — appen skal starte like raskt som før,
+  // og en treg eller feilende versjonssjekk må ikke kunne forsinke den.
+  checkForUpdate();
 });
