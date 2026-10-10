@@ -117,61 +117,81 @@ async function downloadBackup() {
 // ellers presses sammen side om side på én linje i stedet for å stable.
 const KONTO_INPUT_STYLE = 'display:block;width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px';
 
+// Oversetter Supabase sine engelske feilmeldinger til noe forståelig.
+// Ukjente feil slippes gjennom som de er — bedre en rå engelsk melding
+// enn en vag norsk som skjuler hva som faktisk skjedde.
+function kontoFeilTekst(msg = '') {
+  const m = msg.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'Feil e-post eller passord';
+  if (m.includes('already registered') || m.includes('already been registered')) return 'Det finnes allerede en konto med denne e-posten — bruk «Logg inn»';
+  if (m.includes('email not confirmed')) return 'E-posten er ikke bekreftet. Skru av «Confirm email» i Supabase, eller bekreft via e-posten.';
+  if (m.includes('password should be')) return 'Passordet er for kort (minst 6 tegn)';
+  if (m.includes('rate limit')) return 'For mange forsøk — vent litt og prøv igjen';
+  return msg;
+}
+
+// Passord, ikke e-postlenke/kode. Grunnen: en e-postlenke åpner ALLTID
+// Safari på iOS, aldri en app lagt til på hjemskjermen — og de to har
+// helt atskilt lagring, så en innlogging gjort i Safari finnes ikke inne
+// i hjemskjerm-appen. Kode i e-posten ville løst det, men Supabase låser
+// redigering av e-postmalen bak egen SMTP-tjeneste, og deres innebygde
+// e-post har dessuten en svært lav sendegrense. Passord fungerer overalt,
+// uten e-post i det hele tatt.
 function renderKontoLoggedOut(statusMsg = '') {
   const wrap = kontoWrap();
   if (!wrap) return;
   wrap.innerHTML = `
     <div class="tools-item" style="cursor:default;white-space:normal">
       <div style="font-size:12px;font-weight:600;margin-bottom:8px">Konto</div>
-      <input type="email" id="syncEmailInput" placeholder="din@epost.no" style="${KONTO_INPUT_STYLE};margin-bottom:6px">
-      <button class="sort-btn sort-active" id="syncLoginBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px">Send innloggingskode</button>
+      <input type="email" id="syncEmailInput" autocomplete="username" placeholder="din@epost.no" style="${KONTO_INPUT_STYLE};margin-bottom:6px">
+      <input type="password" id="syncPassInput" autocomplete="current-password" placeholder="passord" style="${KONTO_INPUT_STYLE};margin-bottom:6px">
+      <button class="sort-btn sort-active" id="syncLoginBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px;margin-bottom:5px">Logg inn</button>
+      <button class="sort-btn" id="syncSignupBtn" style="display:block;width:100%;box-sizing:border-box;font-size:11px">Opprett konto</button>
       <div id="syncStatus" style="font-size:11px;color:var(--text-muted);margin-top:6px">${statusMsg}</div>
-      <!-- Kode-innlogging finnes fordi en e-postlenke på iOS ALLTID
-           åpner seg i Safari, aldri inne i en app lagt til på
-           hjemskjermen — og de to har helt atskilt lagring, så en
-           innlogging gjort i Safari finnes rett og slett ikke inne i
-           hjemskjerm-appen. Koden kan derimot skrives inn akkurat der
-           man faktisk vil være innlogget. -->
-      <div id="syncCodeWrap" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-light)">
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Åpner lenken seg i feil nettleser? Skriv inn koden fra e-posten her i stedet:</div>
-        <input type="text" id="syncCodeInput" inputmode="numeric" autocomplete="one-time-code" placeholder="6-sifret kode" style="${KONTO_INPUT_STYLE};margin-bottom:6px;letter-spacing:2px;font-weight:600">
-        <button class="sort-btn" id="syncCodeBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px">Logg inn med kode</button>
-      </div>
     </div>`;
 
   const statusEl = () => document.getElementById('syncStatus');
+  const lesFelt = () => ({
+    email: document.getElementById('syncEmailInput').value.trim(),
+    password: document.getElementById('syncPassInput').value,
+  });
+  const gyldig = ({ email, password }) => {
+    if (!sbClient) { statusEl().textContent = 'Supabase-biblioteket lastet ikke — sjekk nettverk/blokkering'; return false; }
+    if (!email) { statusEl().textContent = 'Skriv inn e-post'; return false; }
+    if (!password) { statusEl().textContent = 'Skriv inn passord'; return false; }
+    if (password.length < 6) { statusEl().textContent = 'Passordet må være minst 6 tegn'; return false; }
+    return true;
+  };
 
   document.getElementById('syncLoginBtn').addEventListener('click', async () => {
-    const email = document.getElementById('syncEmailInput').value.trim();
-    if (!email) { statusEl().textContent = 'Skriv inn e-post først'; return; }
-    if (!sbClient) { statusEl().textContent = 'Supabase-biblioteket lastet ikke — sjekk nettverk/blokkering'; return; }
-    statusEl().textContent = 'Sender...';
+    const felt = lesFelt();
+    if (!gyldig(felt)) return;
+    statusEl().textContent = 'Logger inn...';
     try {
-      const { error } = await sbClient.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: location.href.split('#')[0] }
-      });
-      if (error) { statusEl().textContent = 'Noe gikk galt: ' + error.message; return; }
-      statusEl().textContent = 'Sendt! Sjekk e-posten — bruk lenken, eller koden under.';
-      document.getElementById('syncCodeWrap').style.display = 'block';
-    } catch (e) {
-      statusEl().textContent = 'Noe gikk galt: ' + (e?.message || e);
-    }
+      const { error } = await sbClient.auth.signInWithPassword(felt);
+      if (error) statusEl().textContent = kontoFeilTekst(error.message);
+      // Lykkes det, tegner onAuthStateChange innlogget-visningen.
+    } catch (e) { statusEl().textContent = kontoFeilTekst(e?.message || String(e)); }
   });
 
-  document.getElementById('syncCodeBtn').addEventListener('click', async () => {
-    const email = document.getElementById('syncEmailInput').value.trim();
-    const token = document.getElementById('syncCodeInput').value.trim().replace(/\s/g, '');
-    if (!email) { statusEl().textContent = 'Skriv inn e-posten din over først'; return; }
-    if (!token) { statusEl().textContent = 'Skriv inn koden fra e-posten'; return; }
-    statusEl().textContent = 'Sjekker koden...';
+  document.getElementById('syncSignupBtn').addEventListener('click', async () => {
+    const felt = lesFelt();
+    if (!gyldig(felt)) return;
+    statusEl().textContent = 'Oppretter konto...';
     try {
-      const { error } = await sbClient.auth.verifyOtp({ email, token, type: 'email' });
-      if (error) { statusEl().textContent = 'Koden ble ikke godtatt: ' + error.message; return; }
-      // onAuthStateChange tegner innlogget-visningen automatisk.
-    } catch (e) {
-      statusEl().textContent = 'Noe gikk galt: ' + (e?.message || e);
-    }
+      const { data, error } = await sbClient.auth.signUp(felt);
+      if (error) { statusEl().textContent = kontoFeilTekst(error.message); return; }
+      // Er «Confirm email» på i Supabase, returneres en bruker UTEN økt —
+      // da skjer det tilsynelatende ingenting, så si det rett ut.
+      if (!data.session) {
+        statusEl().textContent = 'Konto opprettet, men den må bekreftes på e-post først. Skru av «Confirm email» i Supabase for å slippe det.';
+      }
+    } catch (e) { statusEl().textContent = kontoFeilTekst(e?.message || String(e)); }
+  });
+
+  // Enter i passordfeltet logger inn, som man forventer.
+  document.getElementById('syncPassInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('syncLoginBtn').click();
   });
 }
 
