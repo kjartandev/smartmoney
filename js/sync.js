@@ -127,5 +127,15 @@ async function renderKontoSection() {
   }
 }
 
+// js/main.js closes #toolsMenu on ANY document click (so action buttons
+// inside it — Eksporter, Bytt tema, etc. — auto-close the menu after
+// firing). That's fine for one-shot buttons, but it also meant simply
+// clicking into the email/name input here closed the whole menu before
+// a single character could be typed. Stop the click from ever bubbling
+// past this section — attached once to the static wrapper (never
+// replaced, only its innerHTML churns on re-render), not inside
+// renderKontoSection, so it can't pile up duplicate listeners.
+document.getElementById('kontoSection')?.addEventListener('click', e => e.stopPropagation());
+
 sbClient.auth.onAuthStateChange(() => renderKontoSection());
 renderKontoSection();
