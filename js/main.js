@@ -668,6 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('yearTrigger')?.classList.remove('open');
   });
 
+  const verEl = document.getElementById('appVersionLabel');
+  if (verEl) verEl.textContent = 'Versjon ' + (document.querySelector('meta[name="app-version"]')?.content || '–');
+
   boot(false);
   // Etter boot, aldri foran — appen skal starte like raskt som før,
   // og en treg eller feilende versjonssjekk må ikke kunne forsinke den.

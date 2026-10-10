@@ -13,14 +13,14 @@
 <meta name="theme-color" content="#2d6a2d">
 <!-- Må holdes i synk med version.json — checkForUpdate() i js/main.js
      sammenligner de to for å oppdage at en gammel, cachet versjon kjører. -->
-<meta name="app-version" content="20261011d">
+<meta name="app-version" content="20261011e">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/variables.css?v=20261011d">
-<link rel="stylesheet" href="css/base.css?v=20261011d">
-<link rel="stylesheet" href="css/layout.css?v=20261011d">
-<link rel="stylesheet" href="css/components.css?v=20261011d">
-<link rel="stylesheet" href="css/responsive.css?v=20261011d">
+<link rel="stylesheet" href="css/variables.css?v=20261011e">
+<link rel="stylesheet" href="css/base.css?v=20261011e">
+<link rel="stylesheet" href="css/layout.css?v=20261011e">
+<link rel="stylesheet" href="css/components.css?v=20261011e">
+<link rel="stylesheet" href="css/responsive.css?v=20261011e">
 </head>
 <body>
 
@@ -104,6 +104,12 @@
           <div class="tools-item" id="iconPackPickerWrap" style="cursor:default"></div>
           <div class="tools-divider"></div>
           <div id="kontoSection"></div>
+          <div class="tools-divider"></div>
+          <!-- Fylles fra <meta name="app-version"> i js/main.js. Gjør det
+               mulig å se med det blotte øyet hvilken versjon som faktisk
+               kjører — uvurderlig når man feilsøker om en enhet henger
+               igjen på en gammel, cachet kopi. -->
+          <div class="tools-item" id="appVersionLabel" style="cursor:default;font-size:10px;color:var(--text-muted)"></div>
         </div>
       </div>
     </div>
@@ -187,31 +193,31 @@
      unversioned assets very aggressively) always fetch fresh JS instead
      of silently running stale logic after a fix has shipped. -->
 <!-- Core (must load first — storage, state, utilities) -->
-<script src="js/core.js?v=20261011d"></script>
-<script src="js/emoji-data.js?v=20261011d"></script>
-<script src="js/icons.js?v=20261011d"></script>
+<script src="js/core.js?v=20261011e"></script>
+<script src="js/emoji-data.js?v=20261011e"></script>
+<script src="js/icons.js?v=20261011e"></script>
 <!-- UI (topbar, sidebar, nav, dark mode, toast, panel) -->
-<script src="js/ui.js?v=20261011d"></script>
+<script src="js/ui.js?v=20261011e"></script>
 <!-- Tabs (each self-contained, no cross-dependencies between tabs) -->
-<script src="js/tabs/oversikt.js?v=20261011d"></script>
-<script src="js/tabs/kategorier.js?v=20261011d"></script>
-<script src="js/tabs/transaksjoner.js?v=20261011d"></script>
-<script src="js/tabs/sparing.js?v=20261011d"></script>
-<script src="js/tabs/maaneder.js?v=20261011d"></script>
-<script src="js/tabs/folk.js?v=20261011d"></script>
-<script src="js/tabs/uker.js?v=20261011d"></script>
-<script src="js/tabs/innsikt.js?v=20261011d"></script>
-<script src="js/tabs/budsjett.js?v=20261011d"></script>
-<script src="js/tabs/vakt.js?v=20261011d"></script>
-<script src="js/tabs/lonn.js?v=20261011d"></script>
-<script src="js/tabs/verktoy.js?v=20261011d"></script>
+<script src="js/tabs/oversikt.js?v=20261011e"></script>
+<script src="js/tabs/kategorier.js?v=20261011e"></script>
+<script src="js/tabs/transaksjoner.js?v=20261011e"></script>
+<script src="js/tabs/sparing.js?v=20261011e"></script>
+<script src="js/tabs/maaneder.js?v=20261011e"></script>
+<script src="js/tabs/folk.js?v=20261011e"></script>
+<script src="js/tabs/uker.js?v=20261011e"></script>
+<script src="js/tabs/innsikt.js?v=20261011e"></script>
+<script src="js/tabs/budsjett.js?v=20261011e"></script>
+<script src="js/tabs/vakt.js?v=20261011e"></script>
+<script src="js/tabs/lonn.js?v=20261011e"></script>
+<script src="js/tabs/verktoy.js?v=20261011e"></script>
 <!-- IO (import/export, backup, file handling) -->
-<script src="js/io.js?v=20261011d"></script>
+<script src="js/io.js?v=20261011e"></script>
 <!-- Main (boot, events — must load last) -->
-<script src="js/main.js?v=20261011d"></script>
+<script src="js/main.js?v=20261011e"></script>
 <!-- Sky-synkronisering (valgfritt, se Verktøy ▾ → Konto) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
-<script src="js/sync.js?v=20261011d"></script>
+<script src="js/sync.js?v=20261011e"></script>
 <script src="livereload.js"></script>
 </body>
 </html>
