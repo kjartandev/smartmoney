@@ -50,6 +50,21 @@ function restoreFullBackup(backup) {
   if (backup.customBuckets)  saveCustomBuckets(backup.customBuckets);
   if (backup.nwHistory)      localStorage.setItem('okonomi_nw_history', JSON.stringify(backup.nwHistory));
   if (backup.studielan)      saveStudielanState(backup.studielan);
+  // Disse manglet helt fra backupen fra før denne rettingen — bl.a. hele
+  // jobbprofil-settet (timepris, kveldstillegg, lønn fra-dato, farge for
+  // hver jobb) forsvant stille ved enhver eksport/import eller sky-synk,
+  // siden collectFullBackup() aldri samlet dem inn i utgangspunktet.
+  if (backup.jobbprofiler)         saveJobbprofiler(backup.jobbprofiler);
+  if (backup.sistJobb)             saveSistJobb(backup.sistJobb);
+  if (backup.hiddenDefaults)       saveHiddenDefaults(backup.hiddenDefaults);
+  if (backup.budgetActiveCats)     saveActiveBudgetCats(backup.budgetActiveCats);
+  if (backup.customBudgetCats)     saveCustomBudgetCats(backup.customBudgetCats);
+  if (backup.budgetGroupOverrides) saveBudgetGroupOverrides(backup.budgetGroupOverrides);
+  if (backup.budgetWeeklyOverrides)saveBudgetWeeklyOverrides(backup.budgetWeeklyOverrides);
+  if (backup.abonnementer)         saveAbonnementer(backup.abonnementer);
+  if (backup.skattCalc)            localStorage.setItem(SKATT_CALC_KEY, JSON.stringify(backup.skattCalc));
+  if (backup.lonnSkattTracker)     localStorage.setItem(LONN_SKATT_TRACKER_KEY, JSON.stringify(backup.lonnSkattTracker));
+  if (backup.sparemaalCalc)        localStorage.setItem(SPAREMAAL_CALC_KEY, JSON.stringify(backup.sparemaalCalc));
   const count = backup.txs?.length || 0;
   showToast(`Full backup gjenopprettet · ${count} transaksjoner`);
   boot(false);
@@ -60,10 +75,13 @@ function processBackupFile(file) {
   const r = new FileReader();
   r.onload = e => {
     const text = e.target.result;
-    // Try full JSON backup (v2)
+    // Try full JSON backup (v2 or newer — a strict === 2 check here would
+    // reject every backup exported after collectFullBackup() grew new
+    // fields in v3, which is exactly the kind of silent-data-loss bug this
+    // whole block was already full of)
     try {
       const parsed = JSON.parse(text);
-      if (parsed.version === 2 && parsed.txs) { restoreFullBackup(parsed); return; }
+      if (parsed.version >= 2 && parsed.txs) { restoreFullBackup(parsed); return; }
       // Legacy: plain array of transactions
       if (Array.isArray(parsed) && parsed.length && parsed[0].dato) { restoreFullBackup({txs: parsed}); return; }
     } catch {}
@@ -84,9 +102,22 @@ function processBackupFile(file) {
           vaktsett:  JSON.parse(d[VAKTSETT_KEY]   || '{}'),
           lonn:      JSON.parse(d[LONN_KEY]       || '{}'),
           fordeling: JSON.parse(d[FORDELING_KEY]  || '[]'),
+          checkpoints: JSON.parse(d[CHECKPOINTS_KEY] || '{}'),
+          monthclose:  JSON.parse(d[MONTHCLOSE_KEY]  || '{}'),
           sparemaal: JSON.parse(d[SPAREMAAL_KEY]  || '{}'),
           customBuckets: JSON.parse(d[CUSTOM_BUCKETS_KEY] || '[]'),
           studielan: JSON.parse(d[STUDIELAN_KEY] || 'null'),
+          jobbprofiler: JSON.parse(d[JOBBPROFILER_KEY] || 'null'),
+          sistJobb: JSON.parse(d[SIST_JOBB_KEY] || 'null'),
+          hiddenDefaults: JSON.parse(d[HIDDEN_DEFAULTS_KEY] || '[]'),
+          budgetActiveCats: JSON.parse(d[BUDGET_ACTIVE_CATS_KEY] || 'null'),
+          customBudgetCats: JSON.parse(d[CUSTOM_BUDGET_CATS_KEY] || '[]'),
+          budgetGroupOverrides: JSON.parse(d[BUDGET_GROUP_OVERRIDE_KEY] || '{}'),
+          budgetWeeklyOverrides: JSON.parse(d[BUDGET_WEEKLY_OVERRIDE_KEY] || '{}'),
+          abonnementer: JSON.parse(d[ABONNEMENT_KEY] || '[]'),
+          skattCalc: JSON.parse(d[SKATT_CALC_KEY] || '{}'),
+          lonnSkattTracker: JSON.parse(d[LONN_SKATT_TRACKER_KEY] || '{}'),
+          sparemaalCalc: JSON.parse(d[SPAREMAAL_CALC_KEY] || '{}'),
         };
         restoreFullBackup(backup); return;
       } catch {}
@@ -141,8 +172,22 @@ function collectFullBackup() {
     customBuckets: loadCustomBuckets(),
     nwHistory: JSON.parse(localStorage.getItem('okonomi_nw_history') || '[]'),
     studielan: loadStudielanState(),
+    // Lagt til i v3 — manglet helt fra v2, bl.a. hele jobbprofil-settet
+    // (timepris, kveldstillegg, lønn fra-dato, farge per jobb), som gjorde
+    // at enhver eksport/import eller sky-synk stille mistet dem.
+    jobbprofiler: loadJobbprofiler(),
+    sistJobb: loadSistJobb(),
+    hiddenDefaults: loadHiddenDefaults(),
+    budgetActiveCats: loadActiveBudgetCats(),
+    customBudgetCats: loadCustomBudgetCats(),
+    budgetGroupOverrides: loadBudgetGroupOverrides(),
+    budgetWeeklyOverrides: loadBudgetWeeklyOverrides(),
+    abonnementer: loadAbonnementer(),
+    skattCalc: JSON.parse(localStorage.getItem(SKATT_CALC_KEY) || '{}'),
+    lonnSkattTracker: JSON.parse(localStorage.getItem(LONN_SKATT_TRACKER_KEY) || '{}'),
+    sparemaalCalc: JSON.parse(localStorage.getItem(SPAREMAAL_CALC_KEY) || '{}'),
     exportedAt: new Date().toISOString(),
-    version: 2,
+    version: 3,
   };
 }
 
@@ -165,6 +210,23 @@ function exportToFile() {
     [SPAREMAAL_KEY]:  JSON.stringify(backup.sparemaal),
     [CUSTOM_BUCKETS_KEY]: JSON.stringify(backup.customBuckets),
     [STUDIELAN_KEY]:  JSON.stringify(backup.studielan),
+    // Disse manglet helt her fra før (samme hull som i restoreFullBackup,
+    // se kommentaren der) — denne HTML-varianten gikk via sin egen
+    // nøkkel-liste adskilt fra collectFullBackup()'s JSON-form, og hadde
+    // aldri blitt oppdatert i takt med den.
+    [CHECKPOINTS_KEY]: JSON.stringify(backup.checkpoints),
+    [MONTHCLOSE_KEY]:  JSON.stringify(backup.monthclose),
+    [JOBBPROFILER_KEY]: JSON.stringify(backup.jobbprofiler),
+    [SIST_JOBB_KEY]: JSON.stringify(backup.sistJobb),
+    [HIDDEN_DEFAULTS_KEY]: JSON.stringify(backup.hiddenDefaults),
+    [BUDGET_ACTIVE_CATS_KEY]: JSON.stringify(backup.budgetActiveCats),
+    [CUSTOM_BUDGET_CATS_KEY]: JSON.stringify(backup.customBudgetCats),
+    [BUDGET_GROUP_OVERRIDE_KEY]: JSON.stringify(backup.budgetGroupOverrides),
+    [BUDGET_WEEKLY_OVERRIDE_KEY]: JSON.stringify(backup.budgetWeeklyOverrides),
+    [ABONNEMENT_KEY]: JSON.stringify(backup.abonnementer),
+    [SKATT_CALC_KEY]: JSON.stringify(backup.skattCalc),
+    [LONN_SKATT_TRACKER_KEY]: JSON.stringify(backup.lonnSkattTracker),
+    [SPAREMAAL_CALC_KEY]: JSON.stringify(backup.sparemaalCalc),
   };
   const injectScript = '<scr'+'ipt>try{const d='+JSON.stringify(allKeys)+';Object.entries(d).forEach(([k,v])=>localStorage.setItem(k,v));}catch(e){}</'+'script>';
   const html = document.documentElement.outerHTML;
