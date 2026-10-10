@@ -5,14 +5,41 @@
 // Rører aldri boot()/bootWithData() — synk skjer utelukkende fra et
 // eksplisitt knappetrykk, etter at appen alt har startet normalt fra
 // lokal data.
+//
+// VIKTIG DESIGNREGEL (lært av en feil): Konto-seksjonen MÅ tegnes
+// synkront med en gang, aldri bak et await. Første versjon ventet på
+// sbClient.auth.getSession() før den skrev noe som helst til DOM-en —
+// hang eller feilet det kallet, ble hele seksjonen stående usynlig tom
+// uten en eneste feilmelding i konsollen, og det så ut som funksjonen
+// ikke fantes. Nå tegnes utlogget-tilstand umiddelbart, og vi
+// "oppgraderer" til innlogget-visning etterpå når/hvis økten svarer.
 
 const SUPABASE_URL = 'https://xuktyslpraetthdtwbiu.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Y4ANQAvK1r_ngYnwdd5B8w_4rm91DQu';
-const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Lastes biblioteket ikke (blokkert av utvidelse, nettverk, CDN nede),
+// skal det si ifra i grensesnittet — ikke kaste en TypeError på
+// toppnivå som stopper resten av fila fra å kjøre i det hele tatt.
+const sbClient = (window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+const kontoWrap = () => document.getElementById('kontoSection');
+
+// Et hengende nettverkskall skal aldri kunne etterlate seksjonen tom.
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
 
 async function getSyncSession() {
-  const { data } = await sbClient.auth.getSession();
-  return data.session;
+  if (!sbClient) return null;
+  try {
+    const res = await withTimeout(sbClient.auth.getSession(), 8000, { data: { session: null } });
+    return res?.data?.session || null;
+  } catch { return null; }
 }
 
 // Automatisk sikkerhetskopi FØR en nedlasting fra skyen får lov til å
@@ -28,8 +55,10 @@ function downloadLocalSafetyBackup() {
 }
 
 async function getProfile(userId) {
-  const { data } = await sbClient.from('profiles').select('display_name').eq('id', userId).maybeSingle();
-  return data;
+  try {
+    const { data } = await sbClient.from('profiles').select('display_name').eq('id', userId).maybeSingle();
+    return data;
+  } catch { return null; }
 }
 async function saveDisplayName(name) {
   const session = await getSyncSession();
@@ -40,102 +69,130 @@ async function saveDisplayName(name) {
 
 async function uploadBackup() {
   const session = await getSyncSession();
-  if (!session) return;
-  const backup = collectFullBackup();
-  const { error } = await sbClient.from('backups').insert({ data: backup });
-  if (error) { showToast('Opplasting feilet: ' + error.message); return; }
-  showToast('Lastet opp til sky');
+  if (!session) { showToast('Du er ikke logget inn'); return; }
+  try {
+    const backup = collectFullBackup();
+    const { error } = await sbClient.from('backups').insert({ data: backup });
+    if (error) { showToast('Opplasting feilet: ' + error.message); return; }
+    showToast(`Lastet opp til sky · ${backup.txs.length} transaksjoner`);
+  } catch (e) {
+    showToast('Opplasting feilet: ' + (e?.message || e));
+  }
 }
 
 async function downloadBackup() {
   const session = await getSyncSession();
-  if (!session) return;
-  const { data, error } = await sbClient
-    .from('backups')
-    .select('data,created_at')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) { showToast('Henting feilet: ' + error.message); return; }
-  if (!data) { showToast('Ingen sky-backup funnet ennå — last opp fra en annen enhet først'); return; }
+  if (!session) { showToast('Du er ikke logget inn'); return; }
+  try {
+    const { data, error } = await sbClient
+      .from('backups')
+      .select('data,created_at')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) { showToast('Henting feilet: ' + error.message); return; }
+    if (!data) { showToast('Ingen sky-backup funnet ennå — last opp fra en annen enhet først'); return; }
 
-  const cloud = data.data;
-  const local = collectFullBackup();
-  const vaktAntall = b => Object.values(b.vakter || {}).flat().length;
-  const when = new Date(data.created_at).toLocaleString('nb-NO');
+    const cloud = data.data || {};
+    const local = collectFullBackup();
+    const vaktAntall = b => Object.values(b.vakter || {}).flat().length;
+    const when = new Date(data.created_at).toLocaleString('nb-NO');
 
-  showConfirmDialog(
-    `Denne enheten: ${local.txs.length} transaksjoner, ${vaktAntall(local)} vakter<br>` +
-    `Skyen (${when}): ${cloud.txs.length} transaksjoner, ${vaktAntall(cloud)} vakter<br><br>` +
-    `Henting overskriver det som ligger på denne enheten. En sikkerhetskopi av det du har nå lastes automatisk ned først.`,
-    () => { downloadLocalSafetyBackup(); restoreFullBackup(cloud); },
-    { title: 'Hent fra sky?', confirmLabel: 'Hent fra sky', cancelLabel: 'Avbryt' }
-  );
+    showConfirmDialog(
+      `Denne enheten: ${(local.txs || []).length} transaksjoner, ${vaktAntall(local)} vakter<br>` +
+      `Skyen (${when}): ${(cloud.txs || []).length} transaksjoner, ${vaktAntall(cloud)} vakter<br><br>` +
+      `Henting overskriver det som ligger på denne enheten. En sikkerhetskopi av det du har nå lastes automatisk ned først.`,
+      () => { downloadLocalSafetyBackup(); restoreFullBackup(cloud); },
+      { title: 'Hent fra sky?', confirmLabel: 'Hent fra sky', cancelLabel: 'Avbryt' }
+    );
+  } catch (e) {
+    showToast('Henting feilet: ' + (e?.message || e));
+  }
 }
 
-async function renderKontoSection() {
-  const wrap = document.getElementById('kontoSection');
-  if (!wrap) return;
-  const session = await getSyncSession();
+// ── Rendering ────────────────────────────────────────────────────
+// display:block på input/knapp + white-space:normal på wrapperen:
+// .tools-menu setter white-space:nowrap for sine enkle énlinjes
+// tekstvalg, men input/button er inline-block som standard og ville
+// ellers presses sammen side om side på én linje i stedet for å stable.
+const KONTO_INPUT_STYLE = 'display:block;width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px';
 
-  if (!session) {
-    // display:block on input/button + white-space:normal on the wrapper:
-    // .tools-menu sets white-space:nowrap for its plain single-line text
-    // items, but input/button default to inline-block, so under nowrap
-    // they'd sit squeezed side-by-side on one line instead of stacking —
-    // explicit block + a local nowrap override undoes that.
-    wrap.innerHTML = `
-      <div class="tools-item" style="cursor:default;white-space:normal">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px">Konto</div>
-        <input type="email" id="syncEmailInput" placeholder="din@epost.no"
-          style="display:block;width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px;margin-bottom:6px">
-        <button class="sort-btn sort-active" id="syncLoginBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px">Send innloggingslenke</button>
-        <div id="syncStatus" style="font-size:11px;color:var(--text-muted);margin-top:6px"></div>
-      </div>`;
-    document.getElementById('syncLoginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('syncEmailInput').value.trim();
-      const statusEl = document.getElementById('syncStatus');
-      if (!email) { statusEl.textContent = 'Skriv inn e-post først'; return; }
-      statusEl.textContent = 'Sender...';
+function renderKontoLoggedOut(statusMsg = '') {
+  const wrap = kontoWrap();
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="tools-item" style="cursor:default;white-space:normal">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Konto</div>
+      <input type="email" id="syncEmailInput" placeholder="din@epost.no" style="${KONTO_INPUT_STYLE};margin-bottom:6px">
+      <button class="sort-btn sort-active" id="syncLoginBtn" style="display:block;width:100%;box-sizing:border-box;font-size:12px">Send innloggingslenke</button>
+      <div id="syncStatus" style="font-size:11px;color:var(--text-muted);margin-top:6px">${statusMsg}</div>
+    </div>`;
+  document.getElementById('syncLoginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('syncEmailInput').value.trim();
+    const statusEl = document.getElementById('syncStatus');
+    if (!email) { statusEl.textContent = 'Skriv inn e-post først'; return; }
+    if (!sbClient) { statusEl.textContent = 'Supabase-biblioteket lastet ikke — sjekk nettverk/blokkering'; return; }
+    statusEl.textContent = 'Sender...';
+    try {
       const { error } = await sbClient.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: location.href.split('#')[0] }
       });
       statusEl.textContent = error ? 'Noe gikk galt: ' + error.message : 'Lenke sendt! Sjekk e-posten din.';
-    });
-  } else {
-    const profile = await getProfile(session.user.id);
-    wrap.innerHTML = `
-      <div class="tools-item" style="cursor:default;white-space:normal">
-        <div style="font-size:12px;font-weight:600;margin-bottom:6px">Konto</div>
-        <input type="text" id="syncNameInput" placeholder="Navnet ditt" value="${profile?.display_name || ''}"
-          style="display:block;width:100%;box-sizing:border-box;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;margin-bottom:3px">
-        <div style="font-size:11px;color:var(--text-muted)">${session.user.email}</div>
-      </div>
-      <button class="tools-item" id="syncUploadBtn">${icon('import', { size: 14 })} Last opp til sky</button>
-      <button class="tools-item" id="syncDownloadBtn">${icon('download', { size: 14 })} Hent fra sky</button>
-      <button class="tools-item" id="syncLogoutBtn" style="color:#f44336">Logg ut</button>`;
-    const nameInput = document.getElementById('syncNameInput');
-    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
-    nameInput.addEventListener('change', () => saveDisplayName(nameInput.value.trim()));
-    document.getElementById('syncUploadBtn').addEventListener('click', uploadBackup);
-    document.getElementById('syncDownloadBtn').addEventListener('click', downloadBackup);
-    document.getElementById('syncLogoutBtn').addEventListener('click', async () => {
-      await sbClient.auth.signOut();
-      renderKontoSection();
-    });
-  }
+    } catch (e) {
+      statusEl.textContent = 'Noe gikk galt: ' + (e?.message || e);
+    }
+  });
 }
 
-// js/main.js closes #toolsMenu on ANY document click (so action buttons
-// inside it — Eksporter, Bytt tema, etc. — auto-close the menu after
-// firing). That's fine for one-shot buttons, but it also meant simply
-// clicking into the email/name input here closed the whole menu before
-// a single character could be typed. Stop the click from ever bubbling
-// past this section — attached once to the static wrapper (never
-// replaced, only its innerHTML churns on re-render), not inside
-// renderKontoSection, so it can't pile up duplicate listeners.
-document.getElementById('kontoSection')?.addEventListener('click', e => e.stopPropagation());
+function renderKontoLoggedIn(session, profile) {
+  const wrap = kontoWrap();
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="tools-item" style="cursor:default;white-space:normal">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Konto</div>
+      <input type="text" id="syncNameInput" placeholder="Navnet ditt" value="${profile?.display_name || ''}"
+        style="${KONTO_INPUT_STYLE};font-weight:600;margin-bottom:3px">
+      <div style="font-size:11px;color:var(--text-muted)">${session.user.email}</div>
+    </div>
+    <button class="tools-item" id="syncUploadBtn">${icon('import', { size: 14 })} Last opp til sky</button>
+    <button class="tools-item" id="syncDownloadBtn">${icon('download', { size: 14 })} Hent fra sky</button>
+    <button class="tools-item" id="syncLogoutBtn" style="color:#f44336">Logg ut</button>`;
+  const nameInput = document.getElementById('syncNameInput');
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
+  nameInput.addEventListener('change', () => saveDisplayName(nameInput.value.trim()));
+  document.getElementById('syncUploadBtn').addEventListener('click', uploadBackup);
+  document.getElementById('syncDownloadBtn').addEventListener('click', downloadBackup);
+  document.getElementById('syncLogoutBtn').addEventListener('click', async () => {
+    await sbClient.auth.signOut();
+    renderKontoLoggedOut('Logget ut.');
+  });
+}
 
-sbClient.auth.onAuthStateChange(() => renderKontoSection());
+// Tegner ALLTID noe umiddelbart (synkront), og oppgraderer etterpå.
+function renderKontoSection() {
+  const wrap = kontoWrap();
+  if (!wrap) return;
+  if (!sbClient) {
+    wrap.innerHTML = `<div class="tools-item" style="cursor:default;white-space:normal">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">Konto</div>
+      <div style="font-size:11px;color:#f44336">Sky-synk utilgjengelig: Supabase-biblioteket ble ikke lastet (blokkert av nettverk eller en utvidelse?).</div>
+    </div>`;
+    return;
+  }
+  renderKontoLoggedOut();
+  getSyncSession().then(async session => {
+    if (!session) return;                 // forblir utlogget-visning
+    const profile = await getProfile(session.user.id);
+    renderKontoLoggedIn(session, profile);
+  }).catch(() => { /* utlogget-visningen står allerede der */ });
+}
+
+// js/main.js lukker #toolsMenu på ethvert klikk i dokumentet (fint for
+// engangsknapper som Eksporter/Bytt tema), men det lukket også hele
+// menyen i det man klikket i e-post-/navnefeltet her. Lyttes én gang på
+// den statiske wrapperen — den byttes aldri ut, bare innerHTML-en.
+kontoWrap()?.addEventListener('click', e => e.stopPropagation());
+
+if (sbClient) sbClient.auth.onAuthStateChange(() => renderKontoSection());
 renderKontoSection();
