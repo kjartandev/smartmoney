@@ -28,6 +28,11 @@
   --budget-track-bg: #eaeeea;
   --footer-color: #9aab90;
   --green-accent: #2d6a2d;
+  /* Phone header's segmented control: a recess (track) with the active
+     segment riding on top of it as a lighter thumb, so it reads as one
+     inset switch rather than two loose buttons. */
+  --seg-track-bg: #e3eade;
+  --seg-thumb-bg: #fff;
 }
 
 /* ── Dark mode (noir — neutral black/gray, green only as accent) ── */
@@ -56,6 +61,11 @@ body.dark {
   --budget-track-bg: #262626;
   --footer-color: #5a5a5a;
   --green-accent: #4caf50;
+  /* Noir keeps the same reading — recess barely above the page, thumb
+     clearly lighter than the recess. --card-bg (#141414) is too close to
+     the track to separate here, hence a value of its own. */
+  --seg-track-bg: #151515;
+  --seg-thumb-bg: #2e2e2e;
 }
 
 /* ── Mobile viewport height ──────────────────────────────────────

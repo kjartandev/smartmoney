@@ -22,7 +22,9 @@ function renderTransaksjoner() {
 
   const chipsDiv = document.createElement('div'); chipsDiv.className = 'filter-chips';
   const sortBar  = document.createElement('div');
-  sortBar.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap';
+  // Klasse, ikke inline-stil: en inline flex-wrap kan ikke overstyres av
+  // mobilregelen som gjør raden til én sveipbar linje (css/responsive.css).
+  sortBar.className = 'sort-bar';
   sortBar.innerHTML = `<span style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Sorter:</span><button class="sort-btn sort-active" data-col="dato">Dato ↓</button><button class="sort-btn" data-col="amt">Beløp</button><button class="sort-btn" data-col="cat">Kategori</button>`;
 
   const paginationTop = document.createElement('div');

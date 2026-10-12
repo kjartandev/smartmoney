@@ -484,6 +484,7 @@ function hideLoadingScreen() {
     freezeLoadingCanvas();
     freezeLoadingRain();
     el.classList.add('hidden');
+    syncThemeColor();   // grønn splash → appens egen bakgrunn bak statuslinja
   }, wait);
 }
 
@@ -615,6 +616,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.addEventListener('click', () => document.getElementById('toolsMenu')?.classList.remove('open'));
   document.getElementById('importBackupBtn').addEventListener('click', () => { document.getElementById('toolsMenu').classList.remove('open'); document.getElementById('fileInputBackup').click(); });
+  // Telefonens vei til samme fil-velger som #addMonthBtn i topbaren.
+  document.getElementById('toolsAddMonthBtn').addEventListener('click', () => {
+    document.getElementById('toolsMenu').classList.remove('open');
+    document.getElementById('fileInputHidden').click();
+  });
   document.getElementById('panelClose').addEventListener('click', closePanel);
   document.getElementById('panelOverlay').addEventListener('click', closePanel);
   document.getElementById('exportBtn').addEventListener('click', exportToFile);

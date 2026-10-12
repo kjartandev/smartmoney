@@ -29,6 +29,8 @@ function applyNavIcons() {
     const span = nav.querySelector('.ni-emoji');
     if (span && tab) span.innerHTML = icon(tab);
   });
+  // The phone header carries a ⚙ from the same pack (js/mobile.js).
+  if (typeof renderMobileHeader === 'function') renderMobileHeader();
 }
 
 /** Apply current icon pack to static chrome icons outside the nav (topbar, upload screen) */

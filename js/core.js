@@ -998,8 +998,24 @@ function showConfirmDialog(message, onConfirm, opts = {}) {
 }
 
 // ── Dark mode ───────────────────────────────────────────────────
+/* theme-color is what iOS paints behind the status bar in an installed PWA.
+   It used to be the green topbar's colour and never changed; the phone header
+   is now the app's own background (css/responsive.css), so a green strip above
+   it would read as a leftover banner. Follows whatever is actually on screen:
+   the loading screen's green (or its dark-mode black) while that is up, then
+   the page background once it lifts. */
+function syncThemeColor() {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  const dark    = document.body.classList.contains('dark');
+  const loader  = document.getElementById('loadingScreen');
+  const loading = loader && !loader.classList.contains('hidden');
+  meta.content = dark ? '#0a0a0a' : (loading ? '#1f4d1f' : '#f0f4ee');
+}
+
 function applyDarkMode(dark) {
   document.body.classList.toggle('dark', dark);
+  syncThemeColor();
   const btn = document.getElementById('darkModeToggle');
   if (!btn) return;
   const iconSpan = btn.querySelector('.ti-icon');

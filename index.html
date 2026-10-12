@@ -10,17 +10,21 @@
 <!-- Lets Chrome offer "Install SmartMoney" — installing creates a real macOS
      app with this manifest's icon in the Dock, not a Chrome-branded window. -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2d6a2d">
+<!-- Startverdien matcher lastskjermen (#1f4d1f). syncThemeColor() i js/core.js
+     bytter den til appens bakgrunn når lastskjermen forsvinner, og til svart i
+     mørk modus — slik at statuslinja på iPhone alltid har samme farge som det
+     som faktisk ligger rett under den. -->
+<meta name="theme-color" content="#1f4d1f">
 <!-- Må holdes i synk med version.json — checkForUpdate() i js/main.js
      sammenligner de to for å oppdage at en gammel, cachet versjon kjører. -->
-<meta name="app-version" content="20261011g">
+<meta name="app-version" content="202610121420">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/variables.css?v=20261011g">
-<link rel="stylesheet" href="css/base.css?v=20261011g">
-<link rel="stylesheet" href="css/layout.css?v=20261011g">
-<link rel="stylesheet" href="css/components.css?v=20261011g">
-<link rel="stylesheet" href="css/responsive.css?v=20261011g">
+<link rel="stylesheet" href="css/variables.css?v=202610121420">
+<link rel="stylesheet" href="css/base.css?v=202610121420">
+<link rel="stylesheet" href="css/layout.css?v=202610121420">
+<link rel="stylesheet" href="css/components.css?v=202610121420">
+<link rel="stylesheet" href="css/responsive.css?v=202610121420">
 </head>
 <body>
 
@@ -93,6 +97,11 @@
       <div class="tools-wrap" id="toolsWrap">
         <button class="top-btn" id="toolsBtn"><span class="ti-icon" data-icon="settings">⚙</span> Verktøy ▾</button>
         <div class="tools-menu" id="toolsMenu">
+          <!-- Telefon: topbaren med "+ Legg til måned" er borte på den
+               bredden (css/responsive.css), så den knappen bor her i stedet.
+               .mobile-only skjuler den overalt ellers. -->
+          <button class="tools-item mobile-only" id="toolsAddMonthBtn"><span class="ti-icon" data-icon="add">+</span> Legg til måned</button>
+          <div class="tools-divider mobile-only"></div>
           <button class="tools-item" id="importBackupBtn"><span class="ti-icon" data-icon="import">↑</span> Importer backup</button>
           <div class="tools-divider"></div>
           <button class="tools-item" id="exportBtn"><span class="ti-icon" data-icon="download">⬇</span> Eksporter fil (HTML)</button>
@@ -193,31 +202,34 @@
      unversioned assets very aggressively) always fetch fresh JS instead
      of silently running stale logic after a fix has shipped. -->
 <!-- Core (must load first — storage, state, utilities) -->
-<script src="js/core.js?v=20261011g"></script>
-<script src="js/emoji-data.js?v=20261011g"></script>
-<script src="js/icons.js?v=20261011g"></script>
+<script src="js/core.js?v=202610121420"></script>
+<script src="js/emoji-data.js?v=202610121420"></script>
+<script src="js/icons.js?v=202610121420"></script>
 <!-- UI (topbar, sidebar, nav, dark mode, toast, panel) -->
-<script src="js/ui.js?v=20261011g"></script>
+<script src="js/ui.js?v=202610121420"></script>
+<!-- Mobil-skall (header, segmentert undernav, måneds-ark) — må lastes etter
+     ui.js, som kaller renderMobileHeader() herfra -->
+<script src="js/mobile.js?v=202610121420"></script>
 <!-- Tabs (each self-contained, no cross-dependencies between tabs) -->
-<script src="js/tabs/oversikt.js?v=20261011g"></script>
-<script src="js/tabs/kategorier.js?v=20261011g"></script>
-<script src="js/tabs/transaksjoner.js?v=20261011g"></script>
-<script src="js/tabs/sparing.js?v=20261011g"></script>
-<script src="js/tabs/maaneder.js?v=20261011g"></script>
-<script src="js/tabs/folk.js?v=20261011g"></script>
-<script src="js/tabs/uker.js?v=20261011g"></script>
-<script src="js/tabs/innsikt.js?v=20261011g"></script>
-<script src="js/tabs/budsjett.js?v=20261011g"></script>
-<script src="js/tabs/vakt.js?v=20261011g"></script>
-<script src="js/tabs/lonn.js?v=20261011g"></script>
-<script src="js/tabs/verktoy.js?v=20261011g"></script>
+<script src="js/tabs/oversikt.js?v=202610121420"></script>
+<script src="js/tabs/kategorier.js?v=202610121420"></script>
+<script src="js/tabs/transaksjoner.js?v=202610121420"></script>
+<script src="js/tabs/sparing.js?v=202610121420"></script>
+<script src="js/tabs/maaneder.js?v=202610121420"></script>
+<script src="js/tabs/folk.js?v=202610121420"></script>
+<script src="js/tabs/uker.js?v=202610121420"></script>
+<script src="js/tabs/innsikt.js?v=202610121420"></script>
+<script src="js/tabs/budsjett.js?v=202610121420"></script>
+<script src="js/tabs/vakt.js?v=202610121420"></script>
+<script src="js/tabs/lonn.js?v=202610121420"></script>
+<script src="js/tabs/verktoy.js?v=202610121420"></script>
 <!-- IO (import/export, backup, file handling) -->
-<script src="js/io.js?v=20261011g"></script>
+<script src="js/io.js?v=202610121420"></script>
 <!-- Main (boot, events — must load last) -->
-<script src="js/main.js?v=20261011g"></script>
+<script src="js/main.js?v=202610121420"></script>
 <!-- Sky-synkronisering (valgfritt, se Verktøy ▾ → Konto) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
-<script src="js/sync.js?v=20261011g"></script>
+<script src="js/sync.js?v=202610121420"></script>
 <script src="livereload.js"></script>
 </body>
 </html>

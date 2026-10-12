@@ -1,16 +1,17 @@
 /* ── Mobile responsive ──────────────────────────────────────────── */
 
-/* True default (not inside a media query, so no inline style from JS is
-   needed to compete with it): renderMobileSubNav() (js/ui.js) creates this
-   element unconditionally, on every width. It only ever becomes visible via
-   its own .visible rule below, which lives inside the mobile media query —
-   so this bar simply cannot show on desktop, however its class is toggled. */
-#mobileSubNav { display: none; }
+/* True defaults (not inside a media query, so no inline style from JS has to
+   compete with them): js/mobile.js builds the phone shell's header and month
+   picker unconditionally, on every width. Each only becomes visible through a
+   rule inside the mobile media query below, so none of them can appear on
+   desktop however their classes are toggled. */
+#mobileHeader { display: none; }
+#monthSheet, #monthSheetOverlay { display: none; }
 
-/* Same reasoning as #mobileSubNav above — renderMobileMonthSwitcher()
-   (js/ui.js) creates this unconditionally too, shown only via the mobile
-   media query below. */
-#mobileMonthSwitcher { display: none; }
+/* Items that belong to the phone shell only — e.g. "Legg til måned", which
+   has its own button in the desktop topbar but needs a home in the Verktøy
+   sheet once that topbar is gone. */
+.mobile-only { display: none; }
 
 /* Touch behaviour, all sizes. touch-action removes the ~300ms delay
    browsers add before firing a tap (they were waiting to see if it was a
@@ -26,50 +27,170 @@
      these the topbar sits under the notch / Dynamic Island and the bottom nav
      under the home indicator. env() is 0 everywhere that has no such cutout,
      so these are harmless on Android and in a normal browser tab. */
-  /* One slim row (logo + two icon buttons) instead of three stacked rows
-     (brand / stats / actions). The stats row is dropped entirely — Oversikt
-     already shows the same Inntekt/Utgifter/Netto numbers in its own cards,
-     so the header row was pure duplication eating ~300px of a phone screen
-     before any real content appeared. */
+  /* ── The desktop topbar steps aside ──────────────────────────────
+     The whole green bar — logo, wordmark, the four stat blocks, the action
+     buttons — is gone at this width. #mobileHeader below takes its place:
+     an app does not show you its own name on every screen, and Oversikt
+     already prints the same Inntekt/Utgifter/Netto figures in its own cards,
+     so the stats row was pure duplication eating ~300px before any real
+     content appeared.
+
+     Collapsed rather than display:none, because #toolsMenu lives inside it
+     and a display:none ancestor hides a position:fixed descendant too — the
+     Verktøy bottom sheet would never appear. Zero height with overflow
+     visible keeps that one child reachable while the bar itself paints and
+     occupies nothing. */
   .topbar {
+    display: block;
+    height: 0;
+    min-height: 0;
+    padding: 0;
+    overflow: visible;
+    background: none;
+    border: none;
+  }
+  .topbar-brand, .topbar-stats { display: none; }
+  .topbar-actions { display: block; padding: 0; }
+  /* Leaves only .tools-wrap standing (for the sheet inside it). The buttons
+     it held move elsewhere: Verktøy to the header's ⚙, "Legg til måned" into
+     the Verktøy sheet itself (a once-a-month action does not deserve
+     permanent header space), and fullskjerm nowhere — requestFullscreen()
+     is a silent no-op on iOS Safari (js/main.js), so on this device it was
+     always dead weight. */
+  .topbar-actions > *:not(.tools-wrap) { display: none; }
+  .topbar-actions #toolsBtn { display: none; }
+
+  /* ── Mobile header (js/mobile.js) ────────────────────────────────
+     Title tells you where you are, the chip tells you which month you are
+     looking at, ⚙ opens Verktøy. Painted in the app's own background rather
+     than a contrasting bar: at rest the header and the page read as one
+     surface, and the hairline only appears once content has scrolled under
+     it (.scrolled, set on #mainContent's scroll). */
+  #mobileHeader {
+    display: block;
+    flex-shrink: 0;
+    /* Stacked above .app-body so the scrolled shadow lands ON the content
+       instead of behind .content's own opaque background. */
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    padding: calc(6px + env(safe-area-inset-top))
+             max(14px, env(safe-area-inset-right)) 9px
+             max(14px, env(safe-area-inset-left));
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /* The hairline alone is nearly invisible against the page's own tint, so
+     a very soft shadow comes with it — just enough to say "this bar is on
+     top of something". */
+  #mobileHeader.scrolled {
+    border-bottom-color: var(--border);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+
+  .mh-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  .mh-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mh-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  .mh-month {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+    gap: 3px;
+    height: 36px;
+    padding: 0 10px 0 12px;
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: transform 0.12s;
   }
-  .topbar-brand {
-    border-right: none;
-    padding: 0;
-    justify-content: flex-start;
-    gap: 8px;
-  }
-  .topbar-brand h1 { font-size: 16px; }
-  .topbar-brand .period { display: none !important; }
-  .topbar-logo { width: 32px; height: 32px; border-radius: 9px; }
-  .topbar-stats { display: none; }
-  .topbar-actions { padding: 0; gap: 6px; flex-wrap: nowrap; }
-  /* requestFullscreen() is a no-op on iOS Safari (silently swallowed in
-     js/main.js) — on the most common mobile browser this button is dead
-     weight competing for the now-scarce header space. */
-  #fullscreenBtn { display: none; }
-  /* Both remaining buttons become plain icon circles: the button's own text
-     is zeroed out and the icon (an existing .ti-icon span, or a ::before for
-     addMonthBtn which has none) gets its size back explicitly. 44px matches
-     Apple's minimum comfortable tap target. */
-  .topbar-actions .top-btn {
-    font-size: 0;
-    padding: 0;
-    width: 44px;
-    height: 44px;
-    min-height: 44px;
-    border-radius: 12px;
+  /* .mh-month is display:flex above, which would otherwise beat the [hidden]
+     attribute js/mobile.js sets on the tabs that ignore the month filter. */
+  .mh-month[hidden] { display: none; }
+  .mh-month .mh-chev { font-size: 14px; line-height: 1; margin-top: -3px; color: var(--text-muted); }
+
+  .mh-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 17px;
+    line-height: 1;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: transform 0.12s;
   }
-  .topbar-actions .top-btn .ti-icon { font-size: 18px; }
-  #addMonthBtn::before { content: '+'; font-size: 24px; line-height: 1; }
+  .mh-month:active, .mh-icon:active { transform: scale(0.93); }
+
+  /* ── Segmented control: the pages within this section ────────────
+     Replaces the pill strip that used to sit here. Pills read as filters
+     you switch on and off; one enclosed track with a single thumb reads as
+     "pick which of these views" — which is what it actually is. The thumb
+     is a real element so it slides between siblings (moveSegThumb() in
+     js/mobile.js measures the active button and moves it). */
+  .mh-seg {
+    position: relative;
+    display: flex;
+    gap: 2px;
+    margin-top: 11px;
+    padding: 3px;
+    background: var(--seg-track-bg);
+    border-radius: 11px;
+  }
+  .mh-seg[hidden] { display: none; }
+  .mh-seg-thumb {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: 0;
+    background: var(--seg-thumb-bg);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.13), 0 0 0 0.5px rgba(0,0,0,0.03);
+    transition: transform 0.26s cubic-bezier(0.32,0.72,0,1),
+                width 0.26s cubic-bezier(0.32,0.72,0,1);
+  }
+  .mh-seg-btn {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 32px;
+    padding: 7px 6px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: color 0.18s;
+  }
+  .mh-seg-btn.active { color: var(--text); font-weight: 600; }
 
   .app-body {
     grid-template-columns: 1fr;
@@ -78,111 +199,183 @@
     flex-direction: column-reverse;
   }
 
+  /* ── Bottom tab bar ──────────────────────────────────────────────
+     The sidebar, laid on its side. Four fixed, equal-width tabs that fill
+     the width exactly — no horizontal scrolling, because a tab bar that
+     slides under your thumb never feels like a fixed place to return to.
+     (The 7 sub-pages are reached through the segmented control above, not
+     by cramming 11 entries in here.) */
   .sidebar {
     flex-direction: row;
     padding: 0;
     padding-bottom: env(safe-area-inset-bottom);
     border-right: none;
     border-top: 1px solid var(--border);
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
     flex-shrink: 0;
-    height: calc(60px + env(safe-area-inset-bottom));
+    height: calc(56px + env(safe-area-inset-bottom));
     align-items: stretch;
-    justify-content: space-around;
+    user-select: none;
+    -webkit-user-select: none;
   }
-  .sidebar::-webkit-scrollbar { display: none; }
   .sidebar-section { display: none; }
   .year-dropdown-wrap { display: none !important; }
   .month-grid { display: none; }
   .chart-legend { display: none; }
-  .nav-item {
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px 14px;
-    border-left: none;
-    border-bottom: 3px solid transparent;
-    min-height: 60px;
-    min-width: 62px;
-    font-size: 10px;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .nav-item.active {
-    border-left-color: transparent;
-    border-bottom-color: var(--green-accent);
-  }
-  .nav-item .ni-emoji { font-size: 20px; width: auto; }
-  .nav-label { display: block; }
 
-  /* Global month switcher (renderMobileMonthSwitcher() in js/ui.js) — the
-     sidebar's year-dropdown + 12-month bar chart that drives this app-wide
-     on desktop is hidden entirely on mobile (no room for a full year grid),
-     which left phones with no way to change month at all. ‹ Måned År › —
-     same shape as the vaktkalender's own #calPrev/#calNext pair. */
-  #mobileMonthSwitcher {
+  .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+    padding: 7px 2px 0;
+    border-left: none;
+    border-bottom: none;
+    min-height: 0;
+    font-size: 10px;
+    color: var(--text-muted);
+    align-items: center;
+    justify-content: flex-start;
+    transition: transform 0.12s;
+  }
+  /* Active state is the icon and label themselves, not a slab of background
+     or a 3px rule — on a bottom bar that rule sat at the very bottom edge of
+     the screen, under the icon, where nothing else in the app puts it. The
+     soft pill behind the active icon is what carries it instead. */
+  .nav-item.active {
+    background: none;
+    color: var(--green-accent);
+    border-left-color: transparent;
+  }
+  .nav-item .ni-emoji {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    padding: 10px max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
-    flex-shrink: 0;
+    width: 100%;
+    max-width: 54px;
+    height: 26px;
+    border-radius: 13px;
+    font-size: 19px;
+    /* Inactive tabs go quiet and colourless so the one you are on is the
+       only coloured thing in the bar — the trick that makes an emoji tab
+       bar read as a real one. Harmless on the Lucide/Tabler packs, whose
+       icons are single-colour strokes already. */
+    filter: grayscale(1);
+    opacity: 0.5;
+    transition: background 0.2s, filter 0.2s, opacity 0.2s;
   }
-  .mm-label { font-size: 14px; font-weight: 700; color: var(--text); min-width: 130px; text-align: center; }
-  .mm-arrow {
+  .nav-item.active .ni-emoji {
+    background: var(--nav-active-bg);
+    filter: none;
+    opacity: 1;
+  }
+  .nav-label {
+    display: block;
+    max-width: 100%;
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nav-item.active .nav-label { font-weight: 600; }
+  .nav-item:active { transform: scale(0.94); }
+
+  /* ── Month picker sheet (js/mobile.js) ───────────────────────────
+     Opened from the header's month chip. Same twelve .month-cell bars as
+     the desktop sidebar chart (css/layout.css), four across instead of
+     three, so both views of "which months do I have, and how big were
+     they" look identical. */
+  #monthSheet {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 520;
+    background: var(--panel-bg);
+    border-radius: 18px 18px 0 0;
+    /* In noir the sheet and the page behind it are the same near-black, so
+       the drop shadow alone leaves no visible edge — the hairline draws it. */
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.18);
+    padding: 6px max(16px, env(safe-area-inset-left))
+             calc(16px + env(safe-area-inset-bottom))
+             max(16px, env(safe-area-inset-right));
+    transform: translateY(101%);
+    transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+  }
+  #monthSheet.open { transform: translateY(0); }
+  #monthSheetOverlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 519;
+    background: rgba(0,0,0,0);
+    pointer-events: none;
+    transition: background 0.3s;
+  }
+  #monthSheetOverlay.open { background: rgba(0,0,0,0.3); pointer-events: all; }
+
+  /* --border is nearly invisible against the dark sheet; the muted text
+     colour reads at a glance in both themes without shouting. */
+  .ms-grab { width: 36px; height: 4px; margin: 2px auto 12px; border-radius: 2px; background: var(--text-muted); opacity: 0.4; }
+  .ms-head h2 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+  .ms-years { display: flex; gap: 6px; margin-bottom: 12px; }
+  .ms-years[hidden] { display: none; }
+  .ms-year {
+    padding: 7px 14px;
     background: var(--chip-bg);
     border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 10px;
-    width: 36px;
-    height: 36px;
-    font-size: 17px;
-    line-height: 1;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
-  /* Sibling-pill strip (renderMobileSubNav() in js/ui.js) — same visual
-     language as .filter-chip-sm elsewhere in the app, sized for touch. Only
-     ever present when the JS adds .visible (current tab has siblings). */
-  #mobileSubNav.visible {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding: 10px max(12px, env(safe-area-inset-right)) 2px max(12px, env(safe-area-inset-left));
-    flex-shrink: 0;
-  }
-  #mobileSubNav.visible::-webkit-scrollbar { display: none; }
-  .mobile-subnav-pill {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 7px 14px;
-    min-height: 36px;
+    border-radius: 999px;
     font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
   }
-  .mobile-subnav-pill.active {
-    background: var(--green-accent);
+  .ms-year.active {
+    background: var(--chip-active-bg);
+    border-color: transparent;
+    color: var(--chip-active-text);
+  }
+  /* A class, not an inline style: the inline-grid overrides further down
+     this file would otherwise force these four columns back to two. */
+  .ms-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  #monthSheet .month-cell {
+    width: 100%;
+    padding: 9px 6px 7px;
+    font-family: inherit;
+    text-align: center;
+  }
+  #monthSheet .mc-label { font-size: 12px; margin-bottom: 5px; }
+  #monthSheet .mc-bars { height: 24px; }
+  .ms-all {
+    width: 100%;
+    margin-top: 12px;
+    min-height: 44px;
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .ms-all.active {
+    background: var(--nav-active-bg);
     border-color: var(--green-accent);
-    color: #fff;
+    color: var(--green-accent);
   }
 
+  /* "Legg til måned" and the rest of the phone-only sheet items — hidden at
+     every other width by the .mobile-only default at the top of this file. */
+  .mobile-only { display: block; }
+
   .content {
-    padding: 18px max(16px, env(safe-area-inset-right)) 18px max(16px, env(safe-area-inset-left));
+    padding: 14px max(16px, env(safe-area-inset-right)) 22px max(16px, env(safe-area-inset-left));
+    overscroll-behavior: contain;
     overflow-y: auto;
     flex: 1;
     min-height: 0;
@@ -191,6 +384,48 @@
   .two-col, .summary-grid { grid-template-columns: 1fr; }
   .card { overflow-x: auto; padding: 16px; border-radius: 12px; margin-bottom: 4px; }
   .section-head { margin: 26px 0 12px; }
+
+  /* ── Chip rows scroll instead of wrapping ────────────────────────
+     Seven filter chips plus a sort row wrapped onto four stacked lines at
+     this width — more chrome than content before the first transaction.
+     One sideways row each instead, bled out to both screen edges so the
+     chips run off the side the way a phone's own lists do, which also
+     shows there is more to the right. These are filters, so a chip row is
+     the right shape for them — it is navigation that needed a different
+     one (the segmented control above). */
+  .filter-chips, .sort-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    margin-left: calc(-1 * max(16px, env(safe-area-inset-left)));
+    margin-right: calc(-1 * max(16px, env(safe-area-inset-right)));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .filter-chips::-webkit-scrollbar, .sort-bar::-webkit-scrollbar { display: none; }
+  .filter-chips { margin-bottom: 12px; }
+  .chip { min-height: 38px; padding: 6px 15px; flex-shrink: 0; }
+  .sort-btn, .filter-chip-sm { flex-shrink: 0; }
+
+  /* ── Summary cards ───────────────────────────────────────────────
+     Three cards across becomes two (the inline-grid rules further down),
+     which leaves the third — Netto, the one number that answers "did this
+     month go well" — alone in a half-width box with a hole beside it. Let
+     a lone last card take the full row instead. */
+  [style*="grid-template-columns:1fr 1fr 1fr"] > .sum-card:last-child:nth-child(odd),
+  [style*="grid-template-columns:repeat(3,1fr)"] > .sum-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  /* Desktop keeps these subtitles on one line and clips the overflow; at
+     phone width that cut the trend badge ("↑ 3% vs september 2026") clean
+     in half. Let them wrap onto a second line instead. */
+  .sum-card .sc-sub {
+    white-space: normal;
+    overflow: visible;
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
 
   /* Plain fade on tab switch instead of an instant innerHTML flash — see
      rerenderCurrentTab() in js/io.js for the .tab-switching toggle. A small
@@ -264,6 +499,18 @@
     pointer-events: none;
   }
   .tools-menu.open { transform: translateY(0); pointer-events: all; }
+  /* Same grab handle as the month sheet, so both read as the same kind of
+     thing you pull down to dismiss. */
+  .tools-menu::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 2px auto 10px;
+    border-radius: 2px;
+    background: var(--text-muted);
+    opacity: 0.4;
+  }
   .tools-item { padding: 12px 20px; font-size: 14px; }
 
   /* Dimming backdrop for the tools sheet — #slidePanel already has
@@ -287,7 +534,7 @@
 }
 
 @media (max-width: 768px) and (prefers-reduced-motion: reduce) {
-  #mainContent { transition: none; }
+  #mainContent, .mh-seg-thumb, #monthSheet { transition: none; }
 }
 
 /* ── Phone: transaction table becomes stacked cards ───────────────
@@ -302,16 +549,19 @@
   .tx-table tbody, .tx-table tfoot { display: block; width: 100%; }
   .card { overflow-x: visible; }
 
+  /* Two lines, not three: the note/½ buttons used to take a whole row of
+     their own under every single transaction, which on a list of 25 was
+     ~900px of nothing. They move onto the quiet second line beside the
+     date, where there was empty space anyway. */
   .tx-table tbody tr {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr auto auto;
     grid-template-areas:
-      "icon desc amt"
-      "icon date cat"
-      "note note note";
-    gap: 3px 10px;
+      "icon desc desc amt"
+      "icon date note cat";
+    gap: 2px 8px;
     align-items: center;
-    padding: 12px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--border-light);
   }
   .tx-table tbody tr:last-child { border-bottom: none; }
@@ -338,7 +588,6 @@
   .tx-table tfoot td { display: block; padding: 10px 0 !important; border: none; }
   .tx-table tfoot td[colspan] { flex: 1 1 100%; }
 
-  .nav-item { min-width: 54px; padding: 8px 10px; }
   .sum-card .sc-val { font-size: 19px; }
 }
 
@@ -399,6 +648,26 @@
     grid-template-columns: 44px 1fr auto !important;
   }
 
+  /* Same problem as the grids above, in flex form: a few tab layouts pin a
+     column to a fixed pixel basis (Lønnskalkulatoren's 320px, the
+     vaktkalender's and budsjett's min-widths). On a 358px content area that
+     left a dead strip down the right-hand side of the whole page while the
+     cards themselves looked arbitrarily narrow. Every one of them is a
+     full-width block here.
+
+     Both spellings are listed because the browser normalises what it
+     serialises back into the attribute: a style written literally in a
+     template string keeps "flex:0 0 320px", while one assigned through
+     element.style.cssText comes back as "flex: 0 0 320px" with spaces, and
+     an attribute selector matches that text verbatim. */
+  [style*="flex:0 0 320px"], [style*="flex: 0 0 320px"],
+  [style*="min-width:300px"], [style*="min-width: 300px"],
+  [style*="min-width:280px"], [style*="min-width: 280px"],
+  [style*="min-width:260px"], [style*="min-width: 260px"] {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+  }
+
   /* Expand/collapse arrows belong to the desktop sidebar's grouped nav; in
      the bottom bar there is nothing to expand and they just crowd the icon. */
   .navg-arrow { display: none !important; }
@@ -433,64 +702,67 @@
   #loadingScreen .loading-name-row:last-child { margin-top: -6px; }
 }
 
-/* ── Collapse the grouped nav to 4 labelled top-level tabs ─────────
+/* ── The grouped sidebar nav becomes the 4 bottom tabs ─────────────
    The sidebar nests most tabs inside collapsible groups: three
-   .nav-group-head entries (Oversikt, Lønn, Transaksjoner) each hiding a
-   .nav-group-body of sub-tabs, plus Verktøy on its own. An earlier version
-   of this bar flattened all 11 (4 top-level + 7 sub-tabs: Innsikt, Sparing,
-   Skatt, Budsjett, Uke for uke, Privat, Måneder) into one undifferentiated,
-   horizontally-scrolling strip of bare icons — no labels fit, so you had to
-   guess what each one meant.
+   .nav-group-head entries (Oversikt, Lønn, Transaksjoner) each holding a
+   .nav-group-body of sub-tabs, plus Verktøy on its own. Only those four
+   top-level entries become tabs; the 7 sub-pages belong to the segmented
+   control in the header (js/mobile.js), which is why this bar can keep
+   fixed, equal, full-width tabs instead of scrolling sideways.
 
-   Now the bar shows only the 4 top-level entries, each with icon + label —
-   a real native tab bar, not a sideways sidebar. The 7 sub-tabs are reached
-   instead through the swipeable sibling-pill strip (renderMobileSubNav() in
-   js/ui.js) that appears just under the header whenever the current tab has
-   siblings, so nothing lost reachability — it just doesn't all compete for
-   space in the same bar. */
+   display:contents makes each .nav-group hand its head straight to the
+   bar's own flex layout, so the heads sit as siblings of Verktøy rather
+   than as three nested boxes. They then take exactly the same styling as
+   .nav-item above. */
 @media (max-width: 768px) {
   .nav-group { display: contents; }
   .nav-group-body { display: none !important; }
 
   .nav-group-head {
+    flex: 1 1 0;
+    min-width: 0;
     flex-direction: column;
-    gap: 2px;
-    padding: 6px 14px;
+    gap: 3px;
+    padding: 7px 2px 0;
     border-left: none;
-    border-bottom: 3px solid transparent;
-    min-height: 60px;
-    min-width: 62px;
+    border-bottom: none;
+    min-height: 0;
     font-size: 10px;
     font-weight: 500;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    color: var(--text-muted);
     background: transparent;
+    align-items: center;
+    justify-content: flex-start;
+    transition: transform 0.12s;
   }
   .nav-group-head.active {
+    background: none;
+    color: var(--green-accent);
     border-left-color: transparent;
-    border-bottom-color: var(--green-accent);
   }
-  .nav-group-head .ni-emoji { font-size: 20px; width: auto; }
+  .nav-group-head:active { transform: scale(0.94); }
+  .nav-group-head .ni-emoji {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 54px;
+    height: 26px;
+    border-radius: 13px;
+    font-size: 19px;
+    filter: grayscale(1);
+    opacity: 0.5;
+    transition: background 0.2s, filter 0.2s, opacity 0.2s;
+  }
+  .nav-group-head.active .ni-emoji {
+    background: var(--nav-active-bg);
+    filter: none;
+    opacity: 1;
+  }
   /* Desktop lets the label take the remaining width to push the arrow right;
      stacked under an icon that would stretch the item and break the row. */
   .nav-group-head .nav-label { flex: none; }
-}
-
-@media (max-width: 560px) {
-  .nav-group-head { min-width: 54px; padding: 8px 10px; }
-}
-
-/* ── Phone refinements ────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  /* Each stat block was wrapping its own sub-label ("0 transaksjoner" onto two
-     lines), which set the height of the whole row. Holding them on one line
-     makes every block narrower and the row shorter — the strip still scrolls
-     sideways, there is just less of it to scroll and more screen left over. */
-  .stat-block .sb-label,
-  .stat-block .sb-sub { white-space: nowrap; }
-  .stat-block { padding: 8px 14px; }
-  .stat-block .sb-sub { font-size: 11px; }
+  .nav-group-head.active .nav-label { font-weight: 600; }
 }
 
 @media (max-width: 560px) {
@@ -507,12 +779,16 @@
     line-height: 1.25;
   }
   /* The category dropdown is a full-width control on desktop; here it sits
-     beside the date and would otherwise take the whole second line. */
+     beside the date, so it is capped and pushed to the right edge of its
+     own cell. Left to fill the track it stretched the second line across
+     the whole card and made every row ~40px taller than it had to be. */
   .tx-table tbody td:nth-child(4) select,
   .tx-table tbody td:nth-child(4) .cat-select {
     max-width: 100%;
+    width: auto;
+    margin-left: auto;
     font-size: 13px;
     padding: 4px 6px;
   }
-  .tx-table tbody tr { padding: 14px 0; }
+  .tx-table tbody tr { padding: 11px 0; }
 }

@@ -76,7 +76,9 @@ function renderUker() {
           <span style="display:flex;gap:2px">${catBadges}</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="font-size:16px;font-weight:700;color:${overBudget?'#e74c3c':'var(--text)'}">${fmt(w.total)}</div>
+          <!-- nowrap: på telefon brøt "2 183 kr" over to linjer når uka hadde
+               nok kategoriikoner til å presse summen sammen. -->
+          <div style="font-size:16px;font-weight:700;white-space:nowrap;color:${overBudget?'#e74c3c':'var(--text)'}">${fmt(w.total)}</div>
           <div class="tb-arrow" style="font-size:11px;color:var(--text-muted);transition:transform 0.2s">▼</div>
         </div>`;
 

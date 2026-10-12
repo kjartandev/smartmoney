@@ -1,5 +1,8 @@
 // ── Sidebar chart ────────────────────────────────────────────────
-function renderSidebarChart() {
+/* Income/expense per month, oldest first. Drives both the sidebar's year
+   chart and the phone's month picker (js/mobile.js), so the two cannot
+   disagree about which months have data. */
+function getMonthlyTotals() {
   const monthly = {};
   for (const tx of allClassified) {
     const key  = getMonthKey(tx.dato);
@@ -8,7 +11,11 @@ function renderSidebarChart() {
     if (tx.cat === 'income') monthly[key].income += tx.inn;
     else if (!['income','studielan','savings','internal','transfer_in'].includes(tx.cat) && tx.ut > 0) monthly[key].expenses += tx.ut;
   }
-  const allMonths = Object.values(monthly).sort((a,b) => a.key.localeCompare(b.key));
+  return Object.values(monthly).sort((a,b) => a.key.localeCompare(b.key));
+}
+
+function renderSidebarChart() {
+  const allMonths = getMonthlyTotals();
   const years     = [...new Set(allMonths.map(m => m.year))].sort();
   if (!activeYear || !years.includes(activeYear)) activeYear = years[years.length - 1];
 
@@ -69,48 +76,9 @@ function renderSidebarChart() {
     }
     grid.appendChild(cell);
   }
-  renderMobileMonthSwitcher();
-}
-
-// Mobile-only replacement for the sidebar's year-dropdown + 12-month grid —
-// both are hidden at ≤768px (css/responsive.css) since a full year of bar
-// chart cells has nowhere to go on a phone, which left mobile with no way
-// at all to change the active month. A simple ‹ Måned År › pair of arrows,
-// same pattern the vaktkalender (js/tabs/lonn.js) already uses, writes the
-// exact same activeMonthFilter/activeYear globals the desktop grid does, so
-// every tab that reads getFiltered() (js/core.js) keeps working unchanged.
-// Hidden via CSS on desktop widths regardless of this running.
-function shiftActiveMonth(delta) {
-  let y, m;
-  if (activeMonthFilter) {
-    [y, m] = activeMonthFilter.split('-').map(Number);
-  } else {
-    const now = new Date();
-    y = now.getFullYear(); m = now.getMonth() + 1;
-  }
-  m += delta;
-  if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
-  activeMonthFilter = y + '-' + String(m).padStart(2, '0');
-  activeYear = String(y);
-  renderSidebarChart();
-  updateTopbar();
-  rerenderCurrentTab();
-}
-function renderMobileMonthSwitcher() {
-  let bar = document.getElementById('mobileMonthSwitcher');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'mobileMonthSwitcher';
-    bar.innerHTML = `<button class="mm-arrow" id="mmPrev" aria-label="Forrige måned">‹</button><span class="mm-label" id="mmLabel"></span><button class="mm-arrow" id="mmNext" aria-label="Neste måned">›</button>`;
-    const topbar = document.querySelector('.topbar');
-    topbar.parentNode.insertBefore(bar, topbar.nextSibling);
-    document.getElementById('mmPrev').addEventListener('click', () => shiftActiveMonth(-1));
-    document.getElementById('mmNext').addEventListener('click', () => shiftActiveMonth(1));
-  }
-  const now = new Date();
-  const key = activeMonthFilter || (now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
-  const [y, m] = key.split('-').map(Number);
-  document.getElementById('mmLabel').textContent = monthsNo[m - 1].charAt(0).toUpperCase() + monthsNo[m - 1].slice(1) + ' ' + y;
+  // The phone has no room for a year of chart cells; its month chip reads the
+  // same activeMonthFilter/activeYear this grid writes (js/mobile.js).
+  renderMobileHeader();
 }
 
 // ── Topbar ───────────────────────────────────────────────────────
@@ -194,38 +162,6 @@ function setActiveNav(tab) {
   }
   lastActiveTab = tab;
   applyNavGroups();
-  renderMobileSubNav(tab);
-}
-
-// Mobile-only: a small swipeable pill strip just under the header, shown
-// whenever the current tab has siblings in its sidebar group (Oversikt+
-// Innsikt · Lønn+Sparing+Skatt+Budsjett · Transaksjoner+Uke for uke+Privat+
-// Måneder). The bottom tab bar only shows the 4 top-level entries on
-// mobile (see css/responsive.css), so this is how the 7 sub-tabs stay
-// reachable. Reads sibling order straight from the live .nav-group DOM
-// rather than NAV_TAB_GROUP above — that lookup's key order doesn't match
-// the actual sidebar markup order, so it would've put pills in the wrong
-// sequence. Hidden via CSS on desktop widths regardless of this running.
-function renderMobileSubNav(tab) {
-  let bar = document.getElementById('mobileSubNav');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'mobileSubNav';
-    const appBody = document.querySelector('.app-body');
-    appBody.parentNode.insertBefore(bar, appBody);
-  }
-  const head  = document.querySelector(`.nav-group-head[data-tab="${tab}"]`);
-  const sub   = document.querySelector(`.nav-item.nav-sub[data-tab="${tab}"]`);
-  const group = (head || sub) ? (head || sub).closest('.nav-group') : null;
-  const items = group ? [group.querySelector('.nav-group-head'), ...group.querySelectorAll('.nav-item.nav-sub')] : [];
-  if (items.length < 2) { bar.innerHTML = ''; bar.classList.remove('visible'); return; }
-  bar.classList.add('visible');
-  bar.innerHTML = items.map(el => {
-    const t = el.dataset.tab;
-    const label = el.querySelector('.nav-label')?.textContent || '';
-    return `<button class="mobile-subnav-pill${t === tab ? ' active' : ''}" data-tab="${t}">${icon(t, { size: 13 })} ${label}</button>`;
-  }).join('');
-  bar.querySelectorAll('.mobile-subnav-pill').forEach(btn => {
-    btn.addEventListener('click', () => navigateToTab(btn.dataset.tab));
-  });
+  // Phone: title + segmented control for this tab's section (js/mobile.js).
+  renderMobileHeader();
 }
