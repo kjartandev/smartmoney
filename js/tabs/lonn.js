@@ -752,7 +752,7 @@ function renderLonnskalkulator() {
       return Math.ceil((((d-y)/86400000)+1)/7);
     };
     const grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-template-columns:28px repeat(7,1fr);gap:3px;margin-bottom:12px';
+    grid.className = 'vakt-grid';   // ukenr + 7 dager; smalere på telefon
     // Header row: week label + day names
     const wkHdr = document.createElement('div');
     wkHdr.style.cssText = 'font-size:10px;font-weight:600;color:var(--text-muted);padding:4px 0;text-align:center';
@@ -866,13 +866,16 @@ function renderLonnskalkulator() {
         const res = calcVaktPay(vakt, vaktJobSett, dk2, isVaktHelligdag(dk2, vakt, helligdager));
         if (vakt.kode) {
           const kb = document.createElement('div');
+          kb.className = 'vk-kode';
           kb.style.cssText = 'font-size:12px;font-weight:800;color:var(--text);margin-top:2px;text-align:center';
           kb.textContent = vakt.kode; cell.appendChild(kb);
         }
         const t = document.createElement('div');
+        t.className = 'vk-tid';
         t.style.cssText = 'font-size:9px;color:var(--text-muted);margin-top:1px;text-align:center';
         t.textContent = `${vakt.start}–${vakt.end}`; cell.appendChild(t);
         const p = document.createElement('div');
+        p.className = 'vk-pay';
         p.style.cssText = `font-size:10px;font-weight:700;margin-top:2px;color:${isHellig?'#f5a623':'#4caf50'}`;
         p.textContent = Math.round(res.pay).toLocaleString('nb-NO')+' kr'; cell.appendChild(p);
         if (profiles.length > 1) {
@@ -885,12 +888,17 @@ function renderLonnskalkulator() {
         dayVakter.forEach(vakt => {
           const res = calcVaktPay(vakt, getJobbprofil(vakt.jobId), dk2, isVaktHelligdag(dk2, vakt, helligdager));
           dayTotal += res.pay;
+          // Kode og klokkeslett i hver sin span: på telefon er det ikke plass
+          // til tidsrommet i en 46px-celle, og da skal koden stå igjen alene
+          // i stedet for at hele raden forsvinner (css/responsive.css).
           const t = document.createElement('div');
+          t.className = 'vk-rad';
           t.style.cssText = 'font-size:8px;color:var(--text-muted);margin-top:1px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%';
-          t.textContent = `${vakt.kode ? vakt.kode+' ' : ''}${vakt.start}–${vakt.end}`;
+          t.innerHTML = `${vakt.kode ? `<span class="vk-kode-inline">${vakt.kode}</span> ` : ''}<span class="vk-tid">${vakt.start}–${vakt.end}</span>`;
           cell.appendChild(t);
         });
         const p = document.createElement('div');
+        p.className = 'vk-pay';
         p.style.cssText = `font-size:10px;font-weight:700;margin-top:2px;color:${isHellig?'#f5a623':'#4caf50'}`;
         p.textContent = Math.round(dayTotal).toLocaleString('nb-NO')+' kr'; cell.appendChild(p);
       } else {

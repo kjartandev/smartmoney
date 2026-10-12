@@ -480,7 +480,11 @@ function renderBudsjett() {
       // makes every row in a pair match the taller one's height, so rows
       // don't end up an arbitrary, inconsistent size.
       const rowsGrid = document.createElement('div');
-      rowsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0 24px';
+      // Klasse, ikke inline-stil: en stil satt via cssText skrives tilbake
+      // normalisert ("1fr 1fr" med mellomrom etter kolon), og da bommer
+      // mobilreglene som matcher på teksten i style-attributtet. Se
+      // "Inline grids written in JS" i css/responsive.css.
+      rowsGrid.className = 'budget-rows-grid';
       cats.forEach(cat => rowsGrid.appendChild(buildCatRow(cat, label === 'Sparing')));
       zone.appendChild(rowsGrid);
     }

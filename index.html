@@ -15,16 +15,28 @@
      mørk modus — slik at statuslinja på iPhone alltid har samme farge som det
      som faktisk ligger rett under den. -->
 <meta name="theme-color" content="#1f4d1f">
+<script>
+  /* Settes før første maling. iOS leser theme-color når siden lastes, og en
+     installert hjemskjerm-app reagerer ikke pålitelig på at verdien endres
+     etterpå — derfor holdt det ikke at syncThemeColor() (js/core.js) gjør
+     jobben etter at skriptene har kjørt: statuslinja ble stående grønn over
+     en svart app. Leser mørk modus direkte fra localStorage, siden
+     DARK_KEY ikke er definert enda på dette tidspunktet. */
+  try {
+    document.querySelector('meta[name="theme-color"]').content =
+      localStorage.getItem('okonomi_dark_mode') === '1' ? '#0a0a0a' : '#f0f4ee';
+  } catch (e) {}
+</script>
 <!-- Må holdes i synk med version.json — checkForUpdate() i js/main.js
      sammenligner de to for å oppdage at en gammel, cachet versjon kjører. -->
-<meta name="app-version" content="202610121420">
+<meta name="app-version" content="202610121447">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/variables.css?v=202610121420">
-<link rel="stylesheet" href="css/base.css?v=202610121420">
-<link rel="stylesheet" href="css/layout.css?v=202610121420">
-<link rel="stylesheet" href="css/components.css?v=202610121420">
-<link rel="stylesheet" href="css/responsive.css?v=202610121420">
+<link rel="stylesheet" href="css/variables.css?v=202610121447">
+<link rel="stylesheet" href="css/base.css?v=202610121447">
+<link rel="stylesheet" href="css/layout.css?v=202610121447">
+<link rel="stylesheet" href="css/components.css?v=202610121447">
+<link rel="stylesheet" href="css/responsive.css?v=202610121447">
 </head>
 <body>
 
@@ -202,34 +214,34 @@
      unversioned assets very aggressively) always fetch fresh JS instead
      of silently running stale logic after a fix has shipped. -->
 <!-- Core (must load first — storage, state, utilities) -->
-<script src="js/core.js?v=202610121420"></script>
-<script src="js/emoji-data.js?v=202610121420"></script>
-<script src="js/icons.js?v=202610121420"></script>
+<script src="js/core.js?v=202610121447"></script>
+<script src="js/emoji-data.js?v=202610121447"></script>
+<script src="js/icons.js?v=202610121447"></script>
 <!-- UI (topbar, sidebar, nav, dark mode, toast, panel) -->
-<script src="js/ui.js?v=202610121420"></script>
+<script src="js/ui.js?v=202610121447"></script>
 <!-- Mobil-skall (header, segmentert undernav, måneds-ark) — må lastes etter
      ui.js, som kaller renderMobileHeader() herfra -->
-<script src="js/mobile.js?v=202610121420"></script>
+<script src="js/mobile.js?v=202610121447"></script>
 <!-- Tabs (each self-contained, no cross-dependencies between tabs) -->
-<script src="js/tabs/oversikt.js?v=202610121420"></script>
-<script src="js/tabs/kategorier.js?v=202610121420"></script>
-<script src="js/tabs/transaksjoner.js?v=202610121420"></script>
-<script src="js/tabs/sparing.js?v=202610121420"></script>
-<script src="js/tabs/maaneder.js?v=202610121420"></script>
-<script src="js/tabs/folk.js?v=202610121420"></script>
-<script src="js/tabs/uker.js?v=202610121420"></script>
-<script src="js/tabs/innsikt.js?v=202610121420"></script>
-<script src="js/tabs/budsjett.js?v=202610121420"></script>
-<script src="js/tabs/vakt.js?v=202610121420"></script>
-<script src="js/tabs/lonn.js?v=202610121420"></script>
-<script src="js/tabs/verktoy.js?v=202610121420"></script>
+<script src="js/tabs/oversikt.js?v=202610121447"></script>
+<script src="js/tabs/kategorier.js?v=202610121447"></script>
+<script src="js/tabs/transaksjoner.js?v=202610121447"></script>
+<script src="js/tabs/sparing.js?v=202610121447"></script>
+<script src="js/tabs/maaneder.js?v=202610121447"></script>
+<script src="js/tabs/folk.js?v=202610121447"></script>
+<script src="js/tabs/uker.js?v=202610121447"></script>
+<script src="js/tabs/innsikt.js?v=202610121447"></script>
+<script src="js/tabs/budsjett.js?v=202610121447"></script>
+<script src="js/tabs/vakt.js?v=202610121447"></script>
+<script src="js/tabs/lonn.js?v=202610121447"></script>
+<script src="js/tabs/verktoy.js?v=202610121447"></script>
 <!-- IO (import/export, backup, file handling) -->
-<script src="js/io.js?v=202610121420"></script>
+<script src="js/io.js?v=202610121447"></script>
 <!-- Main (boot, events — must load last) -->
-<script src="js/main.js?v=202610121420"></script>
+<script src="js/main.js?v=202610121447"></script>
 <!-- Sky-synkronisering (valgfritt, se Verktøy ▾ → Konto) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
-<script src="js/sync.js?v=202610121420"></script>
+<script src="js/sync.js?v=202610121447"></script>
 <script src="livereload.js"></script>
 </body>
 </html>

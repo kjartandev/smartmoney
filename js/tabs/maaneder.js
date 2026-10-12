@@ -14,7 +14,7 @@ function renderMaaneder() {
 
   const totalTx = stored.length;
   const statsDiv = document.createElement('div');
-  statsDiv.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px';
+  statsDiv.className = 'maaneder-stats';   // 3 på rad, 2 på telefon
   statsDiv.innerHTML = `
     <div class="card" style="text-align:center"><div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">År lagret</div><div style="font-size:24px;font-weight:600;color:#2d6a2d">${years.length}</div></div>
     <div class="card" style="text-align:center"><div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Måneder</div><div style="font-size:24px;font-weight:600;color:#2d6a2d">${allMonthKeys.length}</div></div>

@@ -551,17 +551,20 @@
 
   /* Two lines, not three: the note/½ buttons used to take a whole row of
      their own under every single transaction, which on a list of 25 was
-     ~900px of nothing. They move onto the quiet second line beside the
-     date, where there was empty space anyway. */
+     ~900px of nothing. They move onto the quiet second line, out at the
+     right edge, with the date and category reading as one meta line:
+
+       🛒  COOP PRIX POSTGIROBYGGET            −34 kr
+           29.09.2026   Mat & Dagligvare ⌄   📝 ½          */
   .tx-table tbody tr {
     display: grid;
     grid-template-columns: auto 1fr auto auto;
     grid-template-areas:
       "icon desc desc amt"
-      "icon date note cat";
-    gap: 2px 8px;
+      "icon date cat  note";
+    gap: 3px 8px;
     align-items: center;
-    padding: 10px 0;
+    padding: 13px 0;
     border-bottom: 1px solid var(--border-light);
   }
   .tx-table tbody tr:last-child { border-bottom: none; }
@@ -667,6 +670,33 @@
     flex: 1 1 100% !important;
     min-width: 0 !important;
   }
+
+  /* ── Layouts that used to be inline styles ───────────────────────
+     These four were set from JS with element.style.cssText, so the browser
+     wrote them back normalised ("grid-template-columns: 1fr 1fr" with a
+     space) and the attribute-matching rules above sailed straight past
+     them. Two columns then fought over ~160px each and spilled past the
+     right edge — which is what made Budsjett scroll sideways and squashed
+     the valutakurser into a column half the screen wide. They are classes
+     now (css/components.css), so this is ordinary CSS. */
+  .budget-rows-grid { grid-template-columns: 1fr; gap: 0; }
+  .tool-two-col { grid-template-columns: 1fr; gap: 16px; }
+  .budget-rows-grid > *, .tool-two-col > * { min-width: 0; }
+  .maaneder-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .maaneder-stats > * { min-width: 0; }
+
+  /* The vaktkalender is the one grid that must stay eight across — a week
+     that wraps is not a week. So it gets tighter instead: a narrower week
+     column, smaller gaps, and no time range in the cell. At 46px per day
+     "15:00–20:30" could only ever wrap onto two lines; the shift code and
+     the money are what you scan a month for, and tapping a day still shows
+     the exact times. */
+  .vakt-grid { grid-template-columns: 18px repeat(7, 1fr); gap: 2px; }
+  .vakt-grid .vk-tid { display: none; }
+  .vakt-grid .vk-pay { font-size: 9px !important; white-space: nowrap; }
+  .vakt-grid .vk-kode { font-size: 11px !important; }
+  /* En dag med to vakter: tidsrommet forsvinner, koden blir stående. */
+  .vakt-grid .vk-kode-inline { font-size: 10px; font-weight: 800; color: var(--text); }
 
   /* Expand/collapse arrows belong to the desktop sidebar's grouped nav; in
      the bottom bar there is nothing to expand and they just crowd the icon. */
@@ -778,17 +808,50 @@
     overflow: hidden;
     line-height: 1.25;
   }
-  /* The category dropdown is a full-width control on desktop; here it sits
-     beside the date, so it is capped and pushed to the right edge of its
-     own cell. Left to fill the track it stretched the second line across
-     the whole card and made every row ~40px taller than it had to be. */
-  .tx-table tbody td:nth-child(4) select,
-  .tx-table tbody td:nth-child(4) .cat-select {
+  /* ── The row reads as a list entry, not a form ────────────────────
+     A bordered dropdown and two bordered buttons on every row turned the
+     list into a wall of controls — the thing that looked busiest on the
+     phone. They are all still there and still tappable; they just stop
+     drawing boxes around themselves and sit in the meta line's own quiet
+     grey, so the eye goes to the shop name and the amount. */
+  .tx-table .cat-override-sel {
     max-width: 100%;
-    width: auto;
-    margin-left: auto;
-    font-size: 13px;
-    padding: 4px 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 12px;
+    color: var(--text-muted);
+    appearance: none;
+    -webkit-appearance: none;
+    text-align: right;
+    direction: ltr;
   }
-  .tx-table tbody tr { padding: 11px 0; }
+  /* A manually overridden category still says so, in colour rather than
+     with a green box around it. */
+  .tx-table .cat-override-sel.is-overridden { color: var(--green-accent); font-weight: 600; }
+  /* appearance:none takes the system arrow with it; this puts a small one
+     back so the field still reads as something you can change. */
+  .tx-table tbody td:nth-child(4) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    min-width: 0;
+  }
+  .tx-table tbody td:nth-child(4)::after {
+    content: '⌄';
+    font-size: 11px;
+    line-height: 1;
+    margin-top: -3px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .tx-table tbody td:nth-child(5) { display: flex; align-items: center; gap: 2px; }
+  .tx-table .note-btn { font-size: 12px; padding: 4px; opacity: 0.4; }
+  .tx-table .split-btn { border: none; padding: 4px 5px; font-size: 12px; opacity: 0.5; }
+  .tx-table .split-btn.active { background: none; color: #e67e22; opacity: 1; }
+  .tx-table tbody td:nth-child(3) { font-size: 12px; }
+  /* 13.5px fits roughly two more characters per line than 14 did, which is
+     often the difference between a shop name wrapping and not. */
+  .tx-name-cell .tn { font-size: 13.5px; }
 }

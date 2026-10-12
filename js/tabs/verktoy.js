@@ -1013,7 +1013,7 @@ function renderVerktoy() {
 
   // Two-column: Feriepenger + Valuta
   const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px';
+  grid.className = 'tool-two-col';   // stables til én kolonne på telefon
 
   const fpHead = document.createElement('div'); fpHead.className = 'section-head'; fpHead.textContent = 'Feriepenger'; c.appendChild(fpHead);
 

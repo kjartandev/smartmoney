@@ -146,7 +146,7 @@ function renderTransaksjoner() {
         </td>
         <td style="color:var(--text-muted);font-size:12px">${tx.dato}</td>
         <td style="font-size:12px">
-          <select class="cat-override-sel" style="border:1px solid ${isOverridden?'var(--green-accent)':'var(--border)'};border-radius:6px;padding:3px 6px;font-family:inherit;font-size:11px;color:${isOverridden?'var(--green-accent)':'var(--text-secondary)'};background:var(--input-bg);cursor:pointer;outline:none">
+          <select class="cat-override-sel${isOverridden ? ' is-overridden' : ''}">
             ${catOpts}
           </select>
         </td>
